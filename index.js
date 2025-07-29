@@ -42,7 +42,7 @@ const upload = multer({ storage });
 // 路由
 app.use('/api/auth', authRoutes);
 
-// 上传接口（需要登录）
+// 图片上传接口（需要登录）
 app.post('/api/upload', authMiddleware, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: '上传失败' });
   res.json({ imageUrl: req.file.path });
@@ -51,7 +51,7 @@ app.post('/api/upload', authMiddleware, upload.single('image'), (req, res) => {
 // 测试接口
 app.get('/api/ping', (req, res) => res.json({ message: 'pong' }));
 
-// 启动服务
+// 启动服务器
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
