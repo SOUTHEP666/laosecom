@@ -39,7 +39,7 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage });
 
-// 路由
+// 路由挂载
 app.use('/api/auth', authRoutes);
 
 // 图片上传接口（需要登录）
