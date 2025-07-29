@@ -1,4 +1,5 @@
-import { pool } from '../index.js';
+// models/userModel.js
+import pool from '../db.js'; // ⬅ 正确导入数据库连接池
 
 export const findUserByEmail = async (email) => {
   const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
