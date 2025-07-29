@@ -1,4 +1,3 @@
-// index.js
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -10,16 +9,15 @@ import authRoutes from './routes/auth.js';
 import pkg from 'pg';
 
 dotenv.config();
-
 const { Pool } = pkg;
-
 const app = express();
 
+// 中间件
 app.use(cors());
 app.use(express.json());
 
-// 数据库连接池
-const pool = new Pool({
+// PostgreSQL 连接池
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
@@ -39,24 +37,21 @@ const storage = new CloudinaryStorage({
     allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
   },
 });
-
 const upload = multer({ storage });
 
-// 挂载 auth 路由
-app.use('/api', authRoutes);
+// 路由
+app.use('/api/auth', authRoutes);
 
-// 图片上传接口，需登录
+// 上传接口（需要登录）
 app.post('/api/upload', authMiddleware, upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: '上传失败' });
   res.json({ imageUrl: req.file.path });
 });
 
 // 测试接口
-app.get('/api/ping', (req, res) => {
-  res.json({ message: 'pong' });
-});
+app.get('/api/ping', (req, res) => res.json({ message: 'pong' }));
 
-// 启动服务器
+// 启动服务
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
