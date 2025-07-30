@@ -5,14 +5,20 @@ import {
   listRoles,
   listPermissions,
 } from "../controllers/roleController.js";
-import { authMiddleware } from "../middlewares/auth.js";
-import { rbac } from "../middlewares/rbac.js";
+import { authMiddleware, adminMiddleware } from "../middlewares/auth.js";
 
 const router = express.Router();
 
-router.post("/assign-role", authMiddleware, rbac("角色管理"), assignRole);
-router.post("/assign-permission", authMiddleware, rbac("权限管理"), assignPermission);
-router.get("/roles", authMiddleware, listRoles);
-router.get("/permissions", authMiddleware, listPermissions);
+// 查询所有角色
+router.get("/", authMiddleware, adminMiddleware, listRoles);
+
+// 查询所有权限
+router.get("/permissions", authMiddleware, adminMiddleware, listPermissions);
+
+// 给用户分配角色
+router.post("/assign-role", authMiddleware, adminMiddleware, assignRole);
+
+// 给角色分配权限
+router.post("/assign-permission", authMiddleware, adminMiddleware, assignPermission);
 
 export default router;
