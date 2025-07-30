@@ -1,17 +1,11 @@
 import express from 'express';
-import {
-  createCategory,
-  getCategories,
-  updateCategory,
-  deleteCategory
-} from '../controllers/categoryController.js';
+import { createProduct, getAllProducts, updateProduct, reviewProduct } from '../controllers/productController.js';
 
 const router = express.Router();
 
-// 分类管理
-router.post('/categories', createCategory);
-router.get('/categories', getCategories);
-router.put('/categories/:id', updateCategory);
-router.delete('/categories/:id', deleteCategory);
+router.post('/', createProduct);
+router.get('/', getAllProducts);
+router.put('/:id', updateProduct);
+router.post('/:id/review', reviewProduct); // 审核流程接口
 
 export default router;
