@@ -91,3 +91,4 @@ export async function getUserRoles(userId) {
   const result = await db.query(sql, [userId]);
   return result.rows.map((row) => row.name);
 }
+
