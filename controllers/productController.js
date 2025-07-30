@@ -1,45 +1,8 @@
 // controllers/productController.js
 import db from '../config/db.js';
 
-// 获取所有商品（可带分类或审核状态筛选）
-export const getAllProducts = async (req, res) => {
-  try {
-    const { category_id, status } = req.query;
-    let query = 'SELECT * FROM products WHERE 1=1';
-    const params = [];
-
-    if (category_id) {
-      query += ' AND category_id = ?';
-      params.push(category_id);
-    }
-
-    if (status) {
-      query += ' AND status = ?';
-      params.push(status);
-    }
-
-    const [rows] = await db.query(query, params);
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ message: '获取商品失败', error });
-  }
-};
-
-// 获取单个商品详情
-export const getProductById = async (req, res) => {
-  try {
-    const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: '商品不存在' });
-    }
-    res.json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ message: '获取商品失败', error });
-  }
-};
-
-// 添加新商品
-export const addProduct = async (req, res) => {
+// 添加新商品（POST /api/products）
+export const createProduct = async (req, res) => {
   try {
     const { title, description, price, category_id, stock, image_url, status } = req.body;
 
@@ -47,84 +10,135 @@ export const addProduct = async (req, res) => {
       return res.status(400).json({ message: '缺少必要字段' });
     }
 
-    await db.query(
+    const result = await db.query(
       `INSERT INTO products (title, description, price, category_id, stock, image_url, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [title, description, price, category_id, stock || 0, image_url || '', status || 'pending']
     );
 
-    res.json({ message: '商品添加成功' });
+    res.status(201).json({ message: '商品添加成功', product: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ message: '添加商品失败', error });
+    res.status(500).json({ message: '添加商品失败', error: error.message });
   }
 };
 
-// 修改商品
+// 获取所有商品（GET /api/products?category_id=1&status=approved）
+export const getAllProducts = async (req, res) => {
+  try {
+    const { category_id, status } = req.query;
+    let query = 'SELECT * FROM products WHERE 1=1';
+    const params = [];
+    let idx = 1;
+
+    if (category_id) {
+      query += ` AND category_id = $${idx++}`;
+      params.push(category_id);
+    }
+
+    if (status) {
+      query += ` AND status = $${idx++}`;
+      params.push(status);
+    }
+
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ message: '获取商品失败', error: error.message });
+  }
+};
+
+// 获取单个商品详情（GET /api/products/:id）
+export const getProductById = async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: '商品不存在' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: '获取商品失败', error: error.message });
+  }
+};
+
+// 修改商品信息（PUT /api/products/:id）
 export const updateProduct = async (req, res) => {
   try {
     const { title, description, price, category_id, stock, image_url, status } = req.body;
     const { id } = req.params;
 
-    await db.query(
-      `UPDATE products SET title=?, description=?, price=?, category_id=?, stock=?, image_url=?, status=? 
-       WHERE id=?`,
+    const result = await db.query(
+      `UPDATE products SET 
+        title = $1, description = $2, price = $3, category_id = $4, 
+        stock = $5, image_url = $6, status = $7 
+       WHERE id = $8 RETURNING *`,
       [title, description, price, category_id, stock, image_url, status, id]
     );
 
-    res.json({ message: '商品更新成功' });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: '商品不存在' });
+    }
+
+    res.json({ message: '商品更新成功', product: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ message: '更新商品失败', error });
+    res.status(500).json({ message: '更新商品失败', error: error.message });
   }
 };
 
-// 删除商品
+// 删除商品（DELETE /api/products/:id）
 export const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM products WHERE id = ?', [id]);
+    const result = await db.query('DELETE FROM products WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: '商品不存在' });
+    }
+
     res.json({ message: '商品删除成功' });
   } catch (error) {
-    res.status(500).json({ message: '删除商品失败', error });
+    res.status(500).json({ message: '删除商品失败', error: error.message });
   }
 };
 
-// 修改库存（可用于下单时扣减）
+// 修改库存（PATCH /api/products/:id/stock）
 export const updateStock = async (req, res) => {
   try {
     const { id } = req.params;
     const { change } = req.body;
 
-    const [result] = await db.query(
-      'UPDATE products SET stock = stock + ? WHERE id = ?',
+    const result = await db.query(
+      'UPDATE products SET stock = stock + $1 WHERE id = $2 RETURNING *',
       [change, id]
     );
 
-    if (result.affectedRows === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: '商品不存在' });
     }
 
-    res.json({ message: '库存更新成功' });
+    res.json({ message: '库存更新成功', product: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ message: '库存更新失败', error });
+    res.status(500).json({ message: '库存更新失败', error: error.message });
   }
 };
 
-// 审核通过商品
-export const approveProduct = async (req, res) => {
+// 商品审核通过（POST /api/products/:id/review）
+export const reviewProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [result] = await db.query(
-      'UPDATE products SET status = ? WHERE id = ?',
+    const result = await db.query(
+      'UPDATE products SET status = $1 WHERE id = $2 RETURNING *',
       ['approved', id]
     );
 
-    if (result.affectedRows === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: '商品不存在或已审核' });
     }
 
-    res.json({ message: '商品审核通过' });
+    res.json({ message: '商品审核通过', product: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ message: '审核失败', error });
+    res.status(500).json({ message: '审核失败', error: error.message });
   }
 };
