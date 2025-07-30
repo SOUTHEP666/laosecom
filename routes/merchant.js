@@ -1,21 +1,32 @@
-// index.js
 import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import merchantRoutes from './routes/merchant.js';
+import {
+  registerMerchant,
+  updateMerchantProfile,
+  getMerchantById,
+  listMerchants,
+  approveMerchant,
+  updateMerchantGradeCommission,
+} from '../controllers/merchantController.js';
+import { authMiddleware, adminMiddleware } from '../middlewares/auth.js';
 
-dotenv.config();
-const app = express();
+const router = express.Router();
 
-// 中间件
-app.use(cors());
-app.use(express.json());
+// 商家申请入驻
+router.post('/register', registerMerchant);
 
-// 路由挂载
-app.use('/api/merchants', merchantRoutes);
+// 商家资料更新
+router.put('/:id', authMiddleware, updateMerchantProfile);
 
-// 监听端口
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// 获取单个商家信息
+router.get('/:id', getMerchantById);
+
+// 获取全部商家（管理员）
+router.get('/', adminMiddleware, listMerchants);
+
+// 审核商家入驻（管理员）
+router.post('/:id/approve', adminMiddleware, approveMerchant);
+
+// 设置商家等级与佣金（管理员）
+router.post('/:id/grade', adminMiddleware, updateMerchantGradeCommission);
+
+export default router;
