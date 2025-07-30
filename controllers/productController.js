@@ -92,9 +92,12 @@ export const deleteProduct = async (req, res) => {
 export const updateStock = async (req, res) => {
   try {
     const { id } = req.params;
-    const { change } = req.body; // 正数加库存，负数减库存
+    const { change } = req.body;
 
-    const [result] = await db.query('UPDATE products SET stock = stock + ? WHERE id = ?', [change, id]);
+    const [result] = await db.query(
+      'UPDATE products SET stock = stock + ? WHERE id = ?',
+      [change, id]
+    );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: '商品不存在' });
@@ -106,16 +109,22 @@ export const updateStock = async (req, res) => {
   }
 };
 
-
-// 示例：controllers/productController.js
-
+// 审核通过商品
 export const approveProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndUpdate(req.params.id, {
-      status: 'approved'
-    }, { new: true });
-    res.json(product);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { id } = req.params;
+
+    const [result] = await db.query(
+      'UPDATE products SET status = ? WHERE id = ?',
+      ['approved', id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: '商品不存在或已审核' });
+    }
+
+    res.json({ message: '商品审核通过' });
+  } catch (error) {
+    res.status(500).json({ message: '审核失败', error });
   }
 };
