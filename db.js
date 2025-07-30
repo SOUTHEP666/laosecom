@@ -1,16 +1,19 @@
-// config/db.js
-import pkg from 'pg';
-import dotenv from 'dotenv';
-
+import pkg from "pg";
+import dotenv from "dotenv";
 dotenv.config();
 
 const { Pool } = pkg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // ← 强制启用 SSL，但允许自签名证书
-  },
 });
 
-export default pool;
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle client", err);
+  process.exit(-1);
+});
+
+export default {
+  query: (text, params) => pool.query(text, params),
+  pool,
+};
