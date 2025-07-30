@@ -1,27 +1,30 @@
-import db from "../config/db.js";
-import bcrypt from "bcrypt";
+// models/userModel.js
+import User from './User.js';
+import UserProfile from './UserProfile.js'; // 你需要创建对应的 UserProfile Sequelize 模型
+import bcrypt from 'bcrypt';
 
 const SALT_ROUNDS = 10;
 
+// 创建用户
 export async function createUser(email, password) {
   const hashed = await bcrypt.hash(password, SALT_ROUNDS);
-  const sql = `INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email, created_at`;
-  const result = await db.query(sql, [email, hashed]);
-  return result.rows[0];
+  const user = await User.create({ email, password: hashed });
+  return user;
 }
 
+// 通过邮箱查找用户（包括密码字段）
 export async function getUserByEmail(email) {
-  const sql = `SELECT * FROM users WHERE email = $1`;
-  const result = await db.query(sql, [email]);
-  return result.rows[0];
+  return await User.findOne({ where: { email } });
 }
 
+// 通过ID查找用户（不包含密码）
 export async function getUserById(id) {
-  const sql = `SELECT id, email, created_at FROM users WHERE id = $1`;
-  const result = await db.query(sql, [id]);
-  return result.rows[0];
+  return await User.findByPk(id, {
+    attributes: ['id', 'email', 'createdAt', 'updatedAt'],
+  });
 }
 
+// 验证密码
 export async function verifyPassword(email, password) {
   const user = await getUserByEmail(email);
   if (!user) return null;
@@ -30,65 +33,48 @@ export async function verifyPassword(email, password) {
   return user;
 }
 
+// 更新密码
 export async function updateUserPassword(id, newPassword) {
   const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  const sql = `UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`;
-  await db.query(sql, [hashed, id]);
+  await User.update(
+    { password: hashed },
+    { where: { id } }
+  );
 }
 
+// 更新或创建用户资料
 export async function updateUserProfile(userId, profile) {
   // profile = { nickname, avatar_url, phone, gender, birthday }
-  const sqlCheck = `SELECT user_id FROM user_profiles WHERE user_id = $1`;
-  const result = await db.query(sqlCheck, [userId]);
-  if (result.rows.length === 0) {
-    // 插入
-    const sqlInsert = `
-      INSERT INTO user_profiles (user_id, nickname, avatar_url, phone, gender, birthday)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `;
-    await db.query(sqlInsert, [
-      userId,
-      profile.nickname || null,
-      profile.avatar_url || null,
-      profile.phone || null,
-      profile.gender || null,
-      profile.birthday || null,
-    ]);
+  const existing = await UserProfile.findOne({ where: { userId } });
+  if (existing) {
+    await UserProfile.update(profile, { where: { userId } });
   } else {
-    // 更新
-    const sqlUpdate = `
-      UPDATE user_profiles SET nickname=$1, avatar_url=$2, phone=$3, gender=$4, birthday=$5, updated_at=CURRENT_TIMESTAMP
-      WHERE user_id=$6
-    `;
-    await db.query(sqlUpdate, [
-      profile.nickname || null,
-      profile.avatar_url || null,
-      profile.phone || null,
-      profile.gender || null,
-      profile.birthday || null,
-      userId,
-    ]);
+    await UserProfile.create({ userId, ...profile });
   }
 }
 
+// 获取用户资料（含 profile）
 export async function getUserProfile(userId) {
-  const sql = `
-    SELECT u.id, u.email, p.nickname, p.avatar_url, p.phone, p.gender, p.birthday
-    FROM users u LEFT JOIN user_profiles p ON u.id = p.user_id
-    WHERE u.id = $1
-  `;
-  const result = await db.query(sql, [userId]);
-  return result.rows[0];
+  return await User.findByPk(userId, {
+    attributes: ['id', 'email', 'createdAt'],
+    include: [{
+      model: UserProfile,
+      as: 'profile',
+      attributes: ['nickname', 'avatar_url', 'phone', 'gender', 'birthday'],
+    }],
+  });
 }
 
-// 角色相关
+// 获取用户角色（假设你有Role模型和UserRole关联）
 export async function getUserRoles(userId) {
-  const sql = `
-    SELECT r.name FROM roles r
-    JOIN user_roles ur ON r.id = ur.role_id
-    WHERE ur.user_id = $1
-  `;
-  const result = await db.query(sql, [userId]);
-  return result.rows.map((row) => row.name);
+  // 这里举例，具体根据你的模型关系调整
+  const user = await User.findByPk(userId, {
+    include: [{
+      model: Role,
+      as: 'roles',
+      attributes: ['name'],
+      through: { attributes: [] }, // 去除中间表字段
+    }],
+  });
+  return user?.roles.map(r => r.name) || [];
 }
-

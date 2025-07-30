@@ -1,7 +1,8 @@
 // models/Order.js
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
-import { User } from './User.js';
+import User from './User.js';
+
 
 const Order = sequelize.define('Order', {
   id: {
