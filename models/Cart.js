@@ -1,27 +1,30 @@
-// models/Cart.js
-import { DataTypes } from 'sequelize';
-import sequelize from '../config/db.js';
-import User from './User.js';
-import Product from './Product.js';
+// models/cartModel.js
+import db from '../config/db.js';
 
-const Cart = sequelize.define('Cart', {
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true,
-  },
-  quantity: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1,
-  },
-}, {
-  tableName: 'carts',
-  timestamps: true,
-});
+export async function addToCart(userId, productId, quantity = 1) {
+  const sql = `
+    INSERT INTO carts (user_id, product_id, quantity)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (user_id, product_id) DO UPDATE
+    SET quantity = carts.quantity + EXCLUDED.quantity
+    RETURNING *
+  `;
+  const result = await db.query(sql, [userId, productId, quantity]);
+  return result.rows[0];
+}
 
-// 关系定义
-Cart.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-Cart.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
+export async function getCartItems(userId) {
+  const sql = `
+    SELECT c.*, p.title, p.price
+    FROM carts c
+    JOIN products p ON c.product_id = p.id
+    WHERE c.user_id = $1
+  `;
+  const result = await db.query(sql, [userId]);
+  return result.rows;
+}
 
-export default Cart;
+export async function removeCartItem(userId, productId) {
+  const sql = `DELETE FROM carts WHERE user_id = $1 AND product_id = $2`;
+  await db.query(sql, [userId, productId]);
+}
