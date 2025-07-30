@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import cloudinary from 'cloudinary';
+import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import { authMiddleware } from './middlewares/auth.js';
@@ -23,18 +23,18 @@ export const pool = new Pool({
 });
 
 // Cloudinary 配置
-cloudinary.v2.config({
+cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// multer + Cloudinary 存储
+// multer + Cloudinary 多图存储配置
 const storage = new CloudinaryStorage({
-  cloudinary: cloudinary.v2,
+  cloudinary: cloudinary,
   params: {
     folder: 'uploads',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
   },
 });
 const upload = multer({ storage });
@@ -42,10 +42,14 @@ const upload = multer({ storage });
 // 路由挂载
 app.use('/api/auth', authRoutes);
 
-// 图片上传接口（需要登录）
-app.post('/api/upload', authMiddleware, upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: '上传失败' });
-  res.json({ imageUrl: req.file.path });
+// ✅ 多图上传接口（需登录）
+app.post('/api/upload', authMiddleware, upload.array('images', 10), (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: '没有上传任何图片' });
+  }
+
+  const imageUrls = req.files.map(file => file.path);
+  res.json({ message: '上传成功', images: imageUrls });
 });
 
 // 测试接口
