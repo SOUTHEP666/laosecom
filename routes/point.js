@@ -4,18 +4,17 @@ import {
   getHistory,
   addPointsManually,
 } from "../controllers/pointController.js";
-import { authMiddleware } from "../middlewares/auth.js";
-import { rbac } from "../middlewares/rbac.js";
+import { authMiddleware, adminMiddleware } from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// 获取当前用户积分与等级
+// 用户查询积分总额和等级
 router.get("/me", authMiddleware, getPoints);
 
-// 查看当前用户积分记录
-router.get("/history", authMiddleware, getHistory);
+// 用户查询积分历史
+router.get("/me/history", authMiddleware, getHistory);
 
-// 管理员手动添加积分
-router.post("/:userId", authMiddleware, rbac("积分管理"), addPointsManually);
+// 管理员手动给用户加积分
+router.post("/:userId/add", adminMiddleware, addPointsManually);
 
 export default router;

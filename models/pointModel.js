@@ -1,42 +1,37 @@
 import db from "../config/db.js";
 
-export async function addUserPoints(userId, points, reason = null) {
-  const sql = `
-    INSERT INTO user_points (user_id, points, reason)
-    VALUES ($1, $2, $3)
-  `;
-  await db.query(sql, [userId, points, reason]);
-}
-
+// 查询用户积分总数
 export async function getUserPoints(userId) {
-  const sql = `
-    SELECT SUM(points) as total_points FROM user_points
-    WHERE user_id = $1
-  `;
-  const result = await db.query(sql, [userId]);
-  return result.rows[0]?.total_points || 0;
+  const result = await db.query(
+    "SELECT COALESCE(SUM(points),0) as total FROM point_logs WHERE user_id=$1",
+    [userId]
+  );
+  return result.rows[0].total;
 }
 
+// 查询用户积分历史记录
 export async function getPointHistory(userId) {
-  const sql = `
-    SELECT id, points, reason, created_at
-    FROM user_points
-    WHERE user_id = $1
-    ORDER BY created_at DESC
-  `;
-  const result = await db.query(sql, [userId]);
+  const result = await db.query(
+    "SELECT * FROM point_logs WHERE user_id=$1 ORDER BY created_at DESC",
+    [userId]
+  );
   return result.rows;
 }
 
+// 查询用户会员等级，假设会员等级在 users 表或另表
 export async function getMembershipLevel(userId) {
-  const sql = `
-    SELECT l.level_name, l.description FROM membership_levels l
-    JOIN (
-      SELECT SUM(points) as total_points FROM user_points WHERE user_id = $1
-    ) up ON up.total_points >= l.min_points
-    ORDER BY l.min_points DESC
-    LIMIT 1
-  `;
-  const result = await db.query(sql, [userId]);
-  return result.rows[0] || { level_name: "普通会员", description: "" };
+  const result = await db.query(
+    "SELECT membership_level FROM users WHERE id=$1",
+    [userId]
+  );
+  return result.rows[0]?.membership_level || "普通会员";
+}
+
+// 手动添加积分
+export async function addUserPoints(userId, points, reason) {
+  await db.query(
+    `INSERT INTO point_logs (user_id, points, reason, type, created_at)
+     VALUES ($1, $2, $3, 'manual', NOW())`,
+    [userId, points, reason]
+  );
 }
