@@ -1,11 +1,13 @@
-import {
+import merchantModel from '../models/merchantModel.js';
+
+const {
   createMerchant,
   updateMerchant,
   getMerchant,
   getAllMerchants,
   approveMerchantById,
   setMerchantGradeCommission,
-} from '../models/merchantModel.js';
+} = merchantModel;
 
 export const registerMerchant = async (req, res) => {
   const merchantData = req.body;
