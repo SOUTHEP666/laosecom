@@ -10,6 +10,8 @@ import productRoutes from "./routes/products.js";
 import cartRoutes from "./routes/cart.js";
 import paymentRoutes from './routes/payment.js';
 import shippingRoutes from './routes/shipping.js';
+import couponRoutes from './routes/coupon.js';
+
 
 
 
@@ -37,6 +39,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/shipping', shippingRoutes);
+app.use('/api/coupons', couponRoutes);
+
 
 
 app.get('/', (req, res) => {
