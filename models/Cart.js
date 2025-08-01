@@ -1,5 +1,4 @@
-// models/cartModel.js
-import db from '../config/db.js';
+import { query } from '../config/db.js';
 
 export async function addToCart(userId, productId, quantity = 1) {
   const sql = `
@@ -9,7 +8,7 @@ export async function addToCart(userId, productId, quantity = 1) {
     SET quantity = carts.quantity + EXCLUDED.quantity
     RETURNING *
   `;
-  const result = await db.query(sql, [userId, productId, quantity]);
+  const result = await query(sql, [userId, productId, quantity]);
   return result.rows[0];
 }
 
@@ -20,11 +19,11 @@ export async function getCartItems(userId) {
     JOIN products p ON c.product_id = p.id
     WHERE c.user_id = $1
   `;
-  const result = await db.query(sql, [userId]);
+  const result = await query(sql, [userId]);
   return result.rows;
 }
 
 export async function removeCartItem(userId, productId) {
   const sql = `DELETE FROM carts WHERE user_id = $1 AND product_id = $2`;
-  await db.query(sql, [userId, productId]);
+  await query(sql, [userId, productId]);
 }

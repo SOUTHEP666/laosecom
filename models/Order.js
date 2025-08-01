@@ -1,5 +1,4 @@
-// models/Order.js
-import db from '../config/db.js';
+import { query } from '../config/db.js';
 
 export async function createOrder(userId, orderNo, totalAmount, paymentMethod) {
   const sql = `
@@ -7,7 +6,7 @@ export async function createOrder(userId, orderNo, totalAmount, paymentMethod) {
     VALUES ($1, $2, $3, $4)
     RETURNING *
   `;
-  const result = await db.query(sql, [userId, orderNo, totalAmount, paymentMethod]);
+  const result = await query(sql, [userId, orderNo, totalAmount, paymentMethod]);
   return result.rows[0];
 }
 
@@ -18,6 +17,6 @@ export async function getOrderById(orderId) {
     JOIN users u ON o.user_id = u.id
     WHERE o.id = $1
   `;
-  const result = await db.query(sql, [orderId]);
+  const result = await query(sql, [orderId]);
   return result.rows[0];
 }
