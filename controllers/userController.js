@@ -7,7 +7,7 @@ import {
   updateUserProfile,
   getUserProfile,
   getUserRoles,
-} from "../models/userModel.js";
+} from "../models/User.js";
 import { generateToken } from "../utils/jwt.js";
 
 export async function register(req, res) {
