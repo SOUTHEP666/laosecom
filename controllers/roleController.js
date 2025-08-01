@@ -1,10 +1,10 @@
-import db from "../config/db.js";
+import { query } from "../config/db.js";
 
 // 分配角色
 export async function assignRole(req, res) {
   const { userId, roleId } = req.body;
   try {
-    await db.query(
+    await query(
       "INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
       [userId, roleId]
     );
@@ -19,7 +19,7 @@ export async function assignRole(req, res) {
 export async function assignPermission(req, res) {
   const { roleId, permissionId } = req.body;
   try {
-    await db.query(
+    await query(
       "INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
       [roleId, permissionId]
     );
@@ -33,7 +33,7 @@ export async function assignPermission(req, res) {
 // 获取角色列表
 export async function listRoles(req, res) {
   try {
-    const result = await db.query("SELECT * FROM roles ORDER BY id");
+    const result = await query("SELECT * FROM roles ORDER BY id");
     res.json({ roles: result.rows });
   } catch (err) {
     console.error(err);
@@ -44,7 +44,7 @@ export async function listRoles(req, res) {
 // 获取权限列表
 export async function listPermissions(req, res) {
   try {
-    const result = await db.query("SELECT * FROM permissions ORDER BY id");
+    const result = await query("SELECT * FROM permissions ORDER BY id");
     res.json({ permissions: result.rows });
   } catch (err) {
     console.error(err);
