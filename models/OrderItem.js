@@ -1,5 +1,4 @@
-// models/OrderItem.js
-import db from '../config/db.js';
+import { query } from '../config/db.js';
 
 // 创建订单项
 export async function createOrderItem(orderId, productId, quantity, price) {
@@ -8,7 +7,7 @@ export async function createOrderItem(orderId, productId, quantity, price) {
     VALUES ($1, $2, $3, $4)
     RETURNING *
   `;
-  const result = await db.query(sql, [orderId, productId, quantity, price]);
+  const result = await query(sql, [orderId, productId, quantity, price]);
   return result.rows[0];
 }
 
@@ -20,6 +19,7 @@ export async function getOrderItemsByOrderId(orderId) {
     JOIN products p ON oi.product_id = p.id
     WHERE oi.order_id = $1
   `;
-  const result = await db.query(sql, [orderId]);
+  const result = await query(sql, [orderId]);
   return result.rows;
 }
+

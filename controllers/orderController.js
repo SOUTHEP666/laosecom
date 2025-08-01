@@ -52,42 +52,46 @@
 //   await pool.query('UPDATE orders SET status = $1 WHERE id = $2', [status, orderId]);
 //   res.json({ message: 'Status updated' });
 // };
-import pool from '../config/db.js';
+import { pool } from '../config/db.js';
 
-// 创建订单（简单示例，事务管理用Promise链或mysql事务）
+// 创建订单，使用 pg 事务
 export const createOrder = async (req, res) => {
+  const client = await pool.connect();
   const { userId, items } = req.body; // items: [{productId, quantity, price}]
-  const conn = await pool.getConnection();
 
   try {
-    await conn.beginTransaction();
+    await client.query('BEGIN');
 
     // 计算总金额
     let totalAmount = 0;
-    items.forEach(item => totalAmount += item.price * item.quantity);
+    items.forEach(item => {
+      totalAmount += item.price * item.quantity;
+    });
 
-    // 插入订单
-    const [orderResult] = await conn.query(
-      'INSERT INTO orders (user_id, total_amount, status, created_at) VALUES (?, ?, "pending", NOW())',
+    // 插入订单，返回插入的 id
+    const orderResult = await client.query(
+      `INSERT INTO orders (user_id, total_amount, status, created_at) 
+       VALUES ($1, $2, 'pending', NOW()) RETURNING id`,
       [userId, totalAmount]
     );
-    const orderId = orderResult.insertId;
+    const orderId = orderResult.rows[0].id;
 
     // 插入订单明细
     for (const item of items) {
-      await conn.query(
-        'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+      await client.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, price) 
+         VALUES ($1, $2, $3, $4)`,
         [orderId, item.productId, item.quantity, item.price]
       );
     }
 
-    await conn.commit();
+    await client.query('COMMIT');
     res.json({ message: '订单创建成功', orderId });
   } catch (err) {
-    await conn.rollback();
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
   } finally {
-    conn.release();
+    client.release();
   }
 };
 
@@ -95,11 +99,11 @@ export const createOrder = async (req, res) => {
 export const getUserOrders = async (req, res) => {
   const userId = req.params.userId;
   try {
-    const [orders] = await pool.query(
-      'SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC',
+    const result = await pool.query(
+      'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
-    res.json(orders);
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -111,7 +115,7 @@ export const updateOrderStatus = async (req, res) => {
   const { status } = req.body;
   try {
     await pool.query(
-      'UPDATE orders SET status = ? WHERE id = ?',
+      'UPDATE orders SET status = $1 WHERE id = $2',
       [status, orderId]
     );
     res.json({ message: '订单状态更新成功' });

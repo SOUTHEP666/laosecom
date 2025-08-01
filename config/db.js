@@ -6,7 +6,10 @@ const { Pool } = pkg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
 });
 
 pool.on("error", (err) => {
@@ -14,7 +17,14 @@ pool.on("error", (err) => {
   process.exit(-1);
 });
 
-export default {
-  query: (text, params) => pool.query(text, params),
-  pool,
-};
+/**
+ * 执行 SQL 查询
+ * @param {string} text - SQL 语句
+ * @param {Array} params - 参数数组
+ * @returns {Promise<QueryResult>}
+ */
+export async function query(text, params) {
+  return pool.query(text, params);
+}
+
+export { pool };

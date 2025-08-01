@@ -35,31 +35,32 @@
 //     res.status(500).json({ error: 'Failed to remove from cart' });
 //   }
 // };
-import pool from '../config/db.js';
+import { query } from '../config/db.js';
 
 // 添加商品到购物车
 export const addToCart = async (req, res) => {
   const { userId, productId, quantity } = req.body;
   try {
-    // 先查有没有这商品的购物车项
-    const [existing] = await pool.query(
-      'SELECT * FROM cart WHERE user_id = ? AND product_id = ?',
+    // 查询是否已存在购物车项
+    const existingResult = await query(
+      'SELECT * FROM cart WHERE user_id = $1 AND product_id = $2',
       [userId, productId]
     );
 
-    if (existing.length > 0) {
-      // 已有则更新数量
-      await pool.query(
-        'UPDATE cart SET quantity = quantity + ? WHERE user_id = ? AND product_id = ?',
+    if (existingResult.rows.length > 0) {
+      // 更新数量
+      await query(
+        'UPDATE cart SET quantity = quantity + $1 WHERE user_id = $2 AND product_id = $3',
         [quantity, userId, productId]
       );
     } else {
-      // 新增一条
-      await pool.query(
-        'INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)',
+      // 新增记录
+      await query(
+        'INSERT INTO cart (user_id, product_id, quantity) VALUES ($1, $2, $3)',
         [userId, productId, quantity]
       );
     }
+
     res.json({ message: '添加购物车成功' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -70,13 +71,14 @@ export const addToCart = async (req, res) => {
 export const getCartByUser = async (req, res) => {
   const userId = req.params.userId;
   try {
-    const [rows] = await pool.query(
+    const result = await query(
       `SELECT c.*, p.title, p.price FROM cart c 
        JOIN products p ON c.product_id = p.id 
-       WHERE c.user_id = ?`,
+       WHERE c.user_id = $1`,
       [userId]
     );
-    res.json(rows);
+
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -86,8 +88,8 @@ export const getCartByUser = async (req, res) => {
 export const removeFromCart = async (req, res) => {
   const { userId, productId } = req.params;
   try {
-    await pool.query(
-      'DELETE FROM cart WHERE user_id = ? AND product_id = ?',
+    await query(
+      'DELETE FROM cart WHERE user_id = $1 AND product_id = $2',
       [userId, productId]
     );
     res.json({ message: '删除成功' });
@@ -95,3 +97,4 @@ export const removeFromCart = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
