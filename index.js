@@ -22,6 +22,7 @@ const allowedOrigins = [
   "https://laostrade.onrender.com", // 老前端地址
   "http://localhost:5173",          // 本地开发
   "https://laostrade.netlify.app", // ✅ Netlify 前端地址
+  "https://laostrade-admin.netlify.app", // ✅ Netlify 管理后台地址
 ];
 
 app.use(cors({
