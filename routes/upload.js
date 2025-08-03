@@ -22,7 +22,7 @@ const upload = multer({
 }).array('images', 10); // 接收字段名为 images 的多图，最多10张
 
 // 上传路由
-router.post('/upload', (req, res) => {
+router.post('/', (req, res) => {
   upload(req, res, async function (err) {
     if (err instanceof multer.MulterError) {
       return res.status(400).json({ message: '上传错误', error: err.message });
