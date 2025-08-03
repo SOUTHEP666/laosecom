@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   "https://laostrade.onrender.com", // 老前端地址
   "http://localhost:5173",          // 本地开发
-  "https://ubiquitous-cobbler-27b3a7.netlify.app", // ✅ Netlify 前端地址
+  "https://laostrade.netlify.app", // ✅ Netlify 前端地址
 ];
 
 app.use(cors({
