@@ -12,13 +12,7 @@ import paymentRoutes from './routes/payment.js';
 import shippingRoutes from './routes/shipping.js';
 import couponRoutes from './routes/coupon.js';
 
-
-
-
-
-
-
-import { pool } from './config/db.js';  // 纯 pg 连接池，解构导入
+import { pool } from './config/db.js';
 
 import * as Cart from './models/Cart.js';
 import * as Order from './models/Order.js';
@@ -27,7 +21,32 @@ import * as OrderItem from './models/OrderItem.js';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// 允许跨域的域名数组（加上你的前端域名）
+const allowedOrigins = [
+  "https://laostrade.onrender.com",
+  "http://localhost:5173", // 如果你本地开发也访问
+];
+
+// cors 配置
+app.use(cors({
+  origin: function(origin, callback) {
+    // 允许无origin（postman等工具请求）或者在允许列表中
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
+
+// 处理预检请求
+app.options("*", cors());
+
+// 解析json
 app.use(express.json());
 
 // 路由注册
@@ -41,13 +60,9 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/coupons', couponRoutes);
 
-
-
 app.get('/', (req, res) => {
   res.send('Server is running');
 });
-
-// 纯 pg 不需要 sequelize.sync()
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
