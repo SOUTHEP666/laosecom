@@ -3,14 +3,14 @@ import bcrypt from 'bcrypt';
 
 const SALT_ROUNDS = 10;
 
-export async function createUser(email, password) {
+export async function createUser(username, phone, email, password) {
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
   const sql = `
-    INSERT INTO users (email, password)
-    VALUES ($1, $2)
-    RETURNING id, email;
+    INSERT INTO users (username, phone, email, password)
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, username, phone, email;
   `;
-  const result = await query(sql, [email, hashedPassword]);
+  const result = await query(sql, [username, phone, email, hashedPassword]);
   return result.rows[0];
 }
 
@@ -20,32 +20,41 @@ export async function getUserByEmail(email) {
   return result.rows[0];
 }
 
-export async function verifyPassword(email, plainPassword) {
-  const user = await getUserByEmail(email);
+export async function verifyPassword(identifier, plainPassword) {
+  const sql = `SELECT * FROM users WHERE email = $1 OR username = $1;`;
+  const result = await query(sql, [identifier]);
+  const user = result.rows[0];
   if (!user) return null;
 
   const match = await bcrypt.compare(plainPassword, user.password);
   if (!match) return null;
 
-  return { id: user.id, email: user.email };
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    phone: user.phone,
+  };
 }
 
 export async function getUserById(id) {
-  const sql = `SELECT id, email FROM users WHERE id = $1;`;
+  const sql = `SELECT id, username, email, phone FROM users WHERE id = $1;`;
   const result = await query(sql, [id]);
   return result.rows[0];
 }
 
 export async function getUserProfile(userId) {
-  const sql = `SELECT id, email FROM users WHERE id = $1;`;
+  const sql = `SELECT id, username, phone, email FROM users WHERE id = $1;`;
   const result = await query(sql, [userId]);
   return result.rows[0];
 }
 
-export async function updateUserProfile(userId, data) {
-  const { email } = data;
-  const sql = `UPDATE users SET email = $1 WHERE id = $2`;
-  await query(sql, [email, userId]);
+export async function updateUserProfile(userId, { username, phone, email }) {
+  const sql = `
+    UPDATE users SET username = $1, phone = $2, email = $3
+    WHERE id = $4
+  `;
+  await query(sql, [username, phone, email, userId]);
 }
 
 export async function updateUserPassword(userId, newPassword) {
@@ -55,5 +64,5 @@ export async function updateUserPassword(userId, newPassword) {
 }
 
 export async function getUserRoles(userId) {
-  return []; // or ['user']
+  return ['user']; // 根据需要这里可扩展查询数据库
 }
