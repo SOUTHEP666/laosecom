@@ -9,7 +9,7 @@ const router = express.Router();
 // 使用 diskStorage 暂存文件
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'tmp/'); // 本地暂存目录（记得创建 uploads 文件夹）
+    cb(null, '/tmp'); // 本地暂存目录（记得创建 uploads 文件夹）
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
