@@ -18,14 +18,20 @@ import * as Cart from './models/Cart.js';
 import * as Order from './models/Order.js';
 import * as OrderItem from './models/OrderItem.js';
 
+import path from "path";
+import { fileURLToPath } from "url";
+
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
 // 允许跨域的域名数组（加上你的前端域名）
 const allowedOrigins = [
   "https://laostrade.onrender.com",
-  "http://localhost:5173", // 如果你本地开发也访问
+  "http://localhost:5173", // 本地开发地址
 ];
 
 // cors 配置
@@ -46,7 +52,7 @@ app.use(cors({
 // 处理预检请求
 app.options("*", cors());
 
-// 解析json
+// 解析json请求体
 app.use(express.json());
 
 // 路由注册
@@ -59,6 +65,14 @@ app.use("/api/cart", cartRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/coupons', couponRoutes);
+
+// 托管前端打包静态文件
+app.use(express.static(path.join(__dirname, "dist")));
+
+// 兜底路由：所有未匹配的请求返回前端 index.html，让 Vue Router 处理路由
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 
 app.get('/', (req, res) => {
   res.send('Server is running');
