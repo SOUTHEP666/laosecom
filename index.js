@@ -11,6 +11,7 @@ import roleRoutes from "./routes/role.js";
 import merchantRoutes from "./routes/merchant.js";
 import productRoutes from "./routes/products.js";
 import cartRoutes from "./routes/cart.js";
+import uploadRoutes from "./routes/upload.js";  // 补充引入上传路由
 
 dotenv.config();
 
@@ -50,6 +51,7 @@ app.use("/api/roles", roleRoutes);
 app.use("/api/merchants", merchantRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/upload", uploadRoutes);  // 挂载上传接口，路径为 /api/upload
 
 // 启动服务器
 app.listen(PORT, () => {
