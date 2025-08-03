@@ -1,27 +1,40 @@
-import { query } from '../config/db.js';
-
 // 添加新商品（POST /api/products）
 export const createProduct = async (req, res) => {
   try {
-    const { title, description, price, category_id, stock, image_url, status } = req.body;
+    let { title, description, price, category_id, stock, image_url, status } = req.body;
 
     if (!title || !price || !category_id) {
       return res.status(400).json({ message: '缺少必要字段' });
     }
 
+    // 如果 image_url 是数组，转成JSON字符串
+    if (Array.isArray(image_url)) {
+      image_url = JSON.stringify(image_url);
+    } else if (typeof image_url !== 'string') {
+      image_url = '[]';
+    }
+
     const result = await query(
       `INSERT INTO products (title, description, price, category_id, stock, image_url, status) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [title, description, price, category_id, stock || 0, image_url || '', status || 'pending']
+      [title, description, price, category_id, stock || 0, image_url, status || 'pending']
     );
 
-    res.status(201).json({ message: '商品添加成功', product: result.rows[0] });
+    // 解析返回数据里的 image_url
+    let product = result.rows[0];
+    try {
+      product.image_url = JSON.parse(product.image_url);
+    } catch {
+      product.image_url = [];
+    }
+
+    res.status(201).json({ message: '商品添加成功', product });
   } catch (error) {
     res.status(500).json({ message: '添加商品失败', error: error.message });
   }
 };
 
-// 获取所有商品（GET /api/products?category_id=1&status=approved）
+// 获取所有商品（GET /api/products）
 export const getAllProducts = async (req, res) => {
   try {
     const { category_id, status } = req.query;
@@ -40,7 +53,18 @@ export const getAllProducts = async (req, res) => {
     }
 
     const result = await query(sql, params);
-    res.json(result.rows);
+
+    // 解析所有商品的 image_url 字段
+    const products = result.rows.map((item) => {
+      try {
+        item.image_url = JSON.parse(item.image_url);
+      } catch {
+        item.image_url = [];
+      }
+      return item;
+    });
+
+    res.json(products);
   } catch (error) {
     res.status(500).json({ message: '获取商品失败', error: error.message });
   }
@@ -55,7 +79,14 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ message: '商品不存在' });
     }
 
-    res.json(result.rows[0]);
+    let product = result.rows[0];
+    try {
+      product.image_url = JSON.parse(product.image_url);
+    } catch {
+      product.image_url = [];
+    }
+
+    res.json(product);
   } catch (error) {
     res.status(500).json({ message: '获取商品失败', error: error.message });
   }
@@ -64,8 +95,18 @@ export const getProductById = async (req, res) => {
 // 修改商品信息（PUT /api/products/:id）
 export const updateProduct = async (req, res) => {
   try {
-    const { title, description, price, category_id, stock, image_url, status } = req.body;
+    let { title, description, price, category_id, stock, image_url, status } = req.body;
     const { id } = req.params;
+
+    if (!id || !title || !price || !category_id) {
+      return res.status(400).json({ message: '缺少必要字段' });
+    }
+
+    if (Array.isArray(image_url)) {
+      image_url = JSON.stringify(image_url);
+    } else if (typeof image_url !== 'string') {
+      image_url = '[]';
+    }
 
     const result = await query(
       `UPDATE products SET 
@@ -79,65 +120,15 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ message: '商品不存在' });
     }
 
-    res.json({ message: '商品更新成功', product: result.rows[0] });
+    let product = result.rows[0];
+    try {
+      product.image_url = JSON.parse(product.image_url);
+    } catch {
+      product.image_url = [];
+    }
+
+    res.json({ message: '商品更新成功', product });
   } catch (error) {
     res.status(500).json({ message: '更新商品失败', error: error.message });
-  }
-};
-
-// 删除商品（DELETE /api/products/:id）
-export const deleteProduct = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await query('DELETE FROM products WHERE id = $1 RETURNING *', [id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: '商品不存在' });
-    }
-
-    res.json({ message: '商品删除成功' });
-  } catch (error) {
-    res.status(500).json({ message: '删除商品失败', error: error.message });
-  }
-};
-
-// 修改库存（PATCH /api/products/:id/stock）
-export const updateStock = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { change } = req.body;
-
-    const result = await query(
-      'UPDATE products SET stock = stock + $1 WHERE id = $2 RETURNING *',
-      [change, id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: '商品不存在' });
-    }
-
-    res.json({ message: '库存更新成功', product: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ message: '库存更新失败', error: error.message });
-  }
-};
-
-// 商品审核通过（POST /api/products/:id/review）
-export const reviewProduct = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await query(
-      'UPDATE products SET status = $1 WHERE id = $2 RETURNING *',
-      ['approved', id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: '商品不存在或已审核' });
-    }
-
-    res.json({ message: '商品审核通过', product: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ message: '审核失败', error: error.message });
   }
 };
