@@ -16,7 +16,7 @@ export const createProduct = async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO products (title, description, price, category_id, stock, image_url, status) 
+      `INSERT INTO products (title, description, price, category_id, stock, image_url, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [title, description, price, category_id, stock || 0, image_url, status || 'pending']
     );
@@ -34,10 +34,11 @@ export const createProduct = async (req, res) => {
   }
 };
 
-// 获取所有商品
+// 获取所有商品（支持分页和筛选）
 export const getAllProducts = async (req, res) => {
   try {
-    const { category_id, status } = req.query;
+    const { page = 1, limit = 10, category_id, status, keyword } = req.query;
+
     let sql = 'SELECT * FROM products WHERE 1=1';
     const params = [];
     let idx = 1;
@@ -52,8 +53,19 @@ export const getAllProducts = async (req, res) => {
       params.push(status);
     }
 
+    if (keyword) {
+      sql += ` AND title ILIKE $${idx++}`;
+      params.push(`%${keyword}%`);
+    }
+
+    // 分页
+    sql += ` ORDER BY id DESC LIMIT $${idx++} OFFSET $${idx++}`;
+    params.push(Number(limit));
+    params.push((Number(page) - 1) * Number(limit));
+
     const result = await query(sql, params);
 
+    // 解析 image_url
     const products = result.rows.map(item => {
       try {
         item.image_url = JSON.parse(item.image_url);
@@ -63,13 +75,13 @@ export const getAllProducts = async (req, res) => {
       return item;
     });
 
-    res.json(products);
+    res.json({ products, page: Number(page), limit: Number(limit) });
   } catch (error) {
     res.status(500).json({ message: '获取商品失败', error: error.message });
   }
 };
 
-// 获取单个商品
+// 获取单个商品详情
 export const getProductById = async (req, res) => {
   try {
     const result = await query('SELECT * FROM products WHERE id = $1', [req.params.id]);
@@ -132,7 +144,7 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-// 添加评论
+// 添加商品评论
 export const reviewProduct = async (req, res) => {
   try {
     const { id: productId } = req.params;

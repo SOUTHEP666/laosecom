@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
-// 引入路由
 import userRoutes from "./routes/user.js";
 import pointRoutes from "./routes/point.js";
 import roleRoutes from "./routes/role.js";
@@ -13,18 +12,16 @@ import productRoutes from "./routes/products.js";
 import cartRoutes from "./routes/cart.js";
 import uploadRoutes from "./routes/upload.js";
 
-
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ 跨域配置（前后端分离）
 const allowedOrigins = [
-  "https://laostrade.onrender.com", // 老前端地址
-  "http://localhost:5173",          // 本地开发
-  "https://laostrade.netlify.app", // ✅ Netlify 前端地址
-  "https://laostrade-admin.netlify.app", // ✅ Netlify 管理后台地址
+  "https://laostrade.onrender.com",
+  "http://localhost:5173",
+  "https://laostrade.netlify.app",
+  "https://laostrade-admin.netlify.app",
 ];
 
 app.use(cors({
@@ -40,7 +37,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// 中间件
+// 解析 JSON 和 urlencoded 格式请求体
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -54,7 +51,6 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/upload", uploadRoutes);
 
-// 启动服务器
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
