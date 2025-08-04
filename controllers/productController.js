@@ -1,3 +1,5 @@
+import { query } from '../config/db.js';
+
 // 添加新商品（POST /api/products）
 export const createProduct = async (req, res) => {
   try {
@@ -20,7 +22,6 @@ export const createProduct = async (req, res) => {
       [title, description, price, category_id, stock || 0, image_url, status || 'pending']
     );
 
-    // 解析返回数据里的 image_url
     let product = result.rows[0];
     try {
       product.image_url = JSON.parse(product.image_url);
@@ -54,7 +55,6 @@ export const getAllProducts = async (req, res) => {
 
     const result = await query(sql, params);
 
-    // 解析所有商品的 image_url 字段
     const products = result.rows.map((item) => {
       try {
         item.image_url = JSON.parse(item.image_url);
@@ -130,5 +130,27 @@ export const updateProduct = async (req, res) => {
     res.json({ message: '商品更新成功', product });
   } catch (error) {
     res.status(500).json({ message: '更新商品失败', error: error.message });
+  }
+};
+
+// 添加商品评论（POST /api/products/:id/review）
+export const reviewProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { user, rating, comment } = req.body;
+
+    if (!user || !rating || !comment) {
+      return res.status(400).json({ message: '缺少评论必要字段' });
+    }
+
+    // 简单示例：往 reviews 表里插入评论，假设有 reviews 表，字段 product_id, user, rating, comment
+    const result = await query(
+      `INSERT INTO reviews (product_id, "user", rating, comment) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [productId, user, rating, comment]
+    );
+
+    res.status(201).json({ message: '评论添加成功', review: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ message: '添加评论失败', error: error.message });
   }
 };
