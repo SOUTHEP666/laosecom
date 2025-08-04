@@ -1,6 +1,4 @@
-import { query } from '../config/db.js';
-
-// 添加新商品
+// 添加新商品（POST /api/products）
 export const createProduct = async (req, res) => {
   try {
     let { title, description, price, category_id, stock, image_url, status } = req.body;
@@ -9,6 +7,7 @@ export const createProduct = async (req, res) => {
       return res.status(400).json({ message: '缺少必要字段' });
     }
 
+    // 如果 image_url 是数组，转成JSON字符串
     if (Array.isArray(image_url)) {
       image_url = JSON.stringify(image_url);
     } else if (typeof image_url !== 'string') {
@@ -16,12 +15,13 @@ export const createProduct = async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO products (title, description, price, category_id, stock, image_url, status)
+      `INSERT INTO products (title, description, price, category_id, stock, image_url, status) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [title, description, price, category_id, stock || 0, image_url, status || 'pending']
     );
 
-    const product = result.rows[0];
+    // 解析返回数据里的 image_url
+    let product = result.rows[0];
     try {
       product.image_url = JSON.parse(product.image_url);
     } catch {
@@ -34,11 +34,10 @@ export const createProduct = async (req, res) => {
   }
 };
 
-// 获取所有商品（支持分页和筛选）
+// 获取所有商品（GET /api/products）
 export const getAllProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 10, category_id, status, keyword } = req.query;
-
+    const { category_id, status } = req.query;
     let sql = 'SELECT * FROM products WHERE 1=1';
     const params = [];
     let idx = 1;
@@ -53,20 +52,10 @@ export const getAllProducts = async (req, res) => {
       params.push(status);
     }
 
-    if (keyword) {
-      sql += ` AND title ILIKE $${idx++}`;
-      params.push(`%${keyword}%`);
-    }
-
-    // 分页
-    sql += ` ORDER BY id DESC LIMIT $${idx++} OFFSET $${idx++}`;
-    params.push(Number(limit));
-    params.push((Number(page) - 1) * Number(limit));
-
     const result = await query(sql, params);
 
-    // 解析 image_url
-    const products = result.rows.map(item => {
+    // 解析所有商品的 image_url 字段
+    const products = result.rows.map((item) => {
       try {
         item.image_url = JSON.parse(item.image_url);
       } catch {
@@ -75,13 +64,13 @@ export const getAllProducts = async (req, res) => {
       return item;
     });
 
-    res.json({ products, page: Number(page), limit: Number(limit) });
+    res.json(products);
   } catch (error) {
     res.status(500).json({ message: '获取商品失败', error: error.message });
   }
 };
 
-// 获取单个商品详情
+// 获取单个商品详情（GET /api/products/:id）
 export const getProductById = async (req, res) => {
   try {
     const result = await query('SELECT * FROM products WHERE id = $1', [req.params.id]);
@@ -90,7 +79,7 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ message: '商品不存在' });
     }
 
-    const product = result.rows[0];
+    let product = result.rows[0];
     try {
       product.image_url = JSON.parse(product.image_url);
     } catch {
@@ -103,7 +92,7 @@ export const getProductById = async (req, res) => {
   }
 };
 
-// 更新商品
+// 修改商品信息（PUT /api/products/:id）
 export const updateProduct = async (req, res) => {
   try {
     let { title, description, price, category_id, stock, image_url, status } = req.body;
@@ -131,7 +120,7 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ message: '商品不存在' });
     }
 
-    const product = result.rows[0];
+    let product = result.rows[0];
     try {
       product.image_url = JSON.parse(product.image_url);
     } catch {
@@ -141,27 +130,5 @@ export const updateProduct = async (req, res) => {
     res.json({ message: '商品更新成功', product });
   } catch (error) {
     res.status(500).json({ message: '更新商品失败', error: error.message });
-  }
-};
-
-// 添加商品评论
-export const reviewProduct = async (req, res) => {
-  try {
-    const { id: productId } = req.params;
-    const { rating, comment } = req.body;
-
-    if (!rating || typeof rating !== 'number' || rating < 1 || rating > 5) {
-      return res.status(400).json({ message: '评分必须是 1 到 5 的数字' });
-    }
-
-    await query(
-      `INSERT INTO reviews (product_id, rating, comment, created_at) 
-       VALUES ($1, $2, $3, NOW())`,
-      [productId, rating, comment || '']
-    );
-
-    res.status(201).json({ message: '评论添加成功' });
-  } catch (error) {
-    res.status(500).json({ message: '添加评论失败', error: error.message });
   }
 };

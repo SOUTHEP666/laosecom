@@ -7,6 +7,6 @@ router.post('/', createProduct);
 router.get('/', getAllProducts);
 router.get('/:id', getProductById);
 router.put('/:id', updateProduct);
-router.post('/:id/review', reviewProduct);
+router.post('/:id/review', reviewProduct); // 审核流程接口
 
 export default router;
