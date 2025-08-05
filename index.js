@@ -11,6 +11,9 @@ import merchantRoutes from "./routes/merchant.js";
 import productRoutes from "./routes/products.js";
 import cartRoutes from "./routes/cart.js";
 import uploadRoutes from "./routes/upload.js";
+import categoryRoutes from "./routes/category.js";
+
+
 
 dotenv.config();
 
@@ -50,6 +53,9 @@ app.use("/api/merchants", merchantRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/categories", categoryRoutes);
+
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
