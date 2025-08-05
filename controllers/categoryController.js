@@ -1,5 +1,5 @@
 // controllers/categoryController.js
-import pool from '../config/db.js';
+import { pool } from '../config/db.js';
 
 export const getCategories = async (req, res) => {
   try {
