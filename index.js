@@ -11,7 +11,7 @@ import merchantRoutes from "./routes/merchant.js";
 import productRoutes from "./routes/products.js";
 import cartRoutes from "./routes/cart.js";
 import uploadRoutes from "./routes/upload.js";
-import categoryRoutes from "./routes/category.js";
+import categoryRoutes from "./routes/categories.js";
 
 
 
