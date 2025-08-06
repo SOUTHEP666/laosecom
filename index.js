@@ -13,7 +13,7 @@ import { query, pool } from "./config/db.js"; // 正确写法
 import authRoutes from "./routes/auth.js";
 import protectedRoutes from "./routes/protected.js";
 import adminRoutes from "./routes/admin.js";
-
+import merchantRoutes from "./routes/merchantRoutes.js"; 
 
 
 
@@ -63,7 +63,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/admin", adminRoutes);
-
+app.use("/api/merchant", merchantRoutes);
 
 
 
