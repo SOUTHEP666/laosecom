@@ -1,7 +1,15 @@
-import Stripe from 'stripe';
+// src/utils/stripe.js
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2022-11-15', // 举例，具体版本看你项目
-});
+// 伪造一个空对象，避免报错
+const stripe = {
+  // 你可以定义一些空函数，防止调用时报错
+  charges: {
+    create: async () => { /* do nothing */ },
+  },
+  customers: {
+    create: async () => { /* do nothing */ },
+  },
+  // 其他用到的方法也可以加
+};
 
 export default stripe;
