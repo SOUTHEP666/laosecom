@@ -11,6 +11,11 @@ import { query, pool } from "./config/db.js"; // 正确写法
 
 // ✅ 路由导入
 import authRoutes from "./routes/auth.js";
+import protectedRoutes from "./routes/protected.js";
+import adminRoutes from "./routes/admin.js";
+
+
+
 
 dotenv.config();
 
@@ -56,6 +61,11 @@ app.use(cookieParser());
 
 // ✅ 路由挂载
 app.use("/api/auth", authRoutes);
+app.use("/api/protected", protectedRoutes);
+app.use("/api/admin", adminRoutes);
+
+
+
 
 // ✅ 健康检查接口
 app.get("/health", (req, res) => {
