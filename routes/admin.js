@@ -1,6 +1,6 @@
 // backend/routes/admin.js
 import express from "express";
-import { authMiddleware, authorizeRoles } from "../middleware/auth.js";
+import { authMiddleware, authorizeRoles } from "../middlewares/auth.js";
 import {
   getAllUsers,
   deleteUser,
