@@ -1,6 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import db from '../db'; // 你自己的数据库连接模块
+import db from '../config/db'; // 你自己的数据库连接模块
 
 const router = express.Router();
 
