@@ -1,5 +1,5 @@
 import express from "express";
-import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js"; // 注意路径是否正确
+import { authMiddleware, authorizeRoles } from "../middlewares/authMiddleware.js"; // 注意路径是否正确
 
 const router = express.Router();
 
