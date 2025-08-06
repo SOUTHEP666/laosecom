@@ -13,13 +13,8 @@ import orderRoutes from "./routes/order.js";
 import uploadRoutes from "./routes/upload.js";
 import paymentRoutes from "./routes/payment.js";
 import reviewRoutes from "./routes/review.js";
-// app.js 中追加：
 import sellerAdminRoutes from "./routes/sellerAdmin.js";
 import productAuditRoutes from "./routes/productAudit.js";
-
-
-
-
 
 dotenv.config();
 
@@ -33,7 +28,23 @@ const allowedOrigins = [
   "https://laostrade-admin.netlify.app",
 ];
 
+// CORS 配置 - 一定要放在所有路由前面
 app.use(cors({
+  origin: function (origin, callback) {
+    // 允许无 origin（非浏览器请求）或者白名单内的 origin 访问
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true, // 允许携带 cookie
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+// 显式处理预检请求，避免 OPTIONS 请求被阻断
+app.options("*", cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -63,9 +74,6 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin/sellers", sellerAdminRoutes);
 app.use("/api/admin/products", productAuditRoutes);
-
-
-
 
 // 错误处理中间件（可选）
 app.use((err, req, res, next) => {
