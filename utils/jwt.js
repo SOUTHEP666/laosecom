@@ -1,17 +1,15 @@
+// utils/jwt.js
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-dotenv.config();
+const SECRET = process.env.JWT_SECRET || "default_secret";
 
-export function generateToken(payload) {
-  return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.TOKEN_EXPIRE || "1d",
-  });
-}
+export const generateToken = (user) => {
+  return jwt.sign(
+    { id: user.id, username: user.username, role: user.role },
+    SECRET,
+    { expiresIn: "7d" }
+  );
+};
 
-export function verifyToken(token) {
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    return null;
-  }
-}
+export const verifyToken = (token) => {
+  return jwt.verify(token, SECRET);
+};

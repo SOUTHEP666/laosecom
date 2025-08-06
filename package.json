@@ -21,5 +21,17 @@
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.7"
-  }
+  },
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SOUTHEP666/laosecom.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SOUTHEP666/laosecom/issues"
+  },
+  "homepage": "https://github.com/SOUTHEP666/laosecom#readme"
 }
