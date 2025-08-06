@@ -1,6 +1,9 @@
 import bcrypt from "bcrypt";
 import { query } from "../config/db.js";
 import { generateToken } from "../utils/jwt.js";
+import jwt from "jsonwebtoken";
+
+
 
 // 用户注册（买家/商家）
 export const register = async (req, res) => {
@@ -56,3 +59,24 @@ export const login = async (req, res) => {
     res.status(500).json({ message: "服务器错误" });
   }
 };
+
+
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
+
+// 通用鉴权中间件
+export function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "未授权访问" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    console.error("Token 验证失败:", err);
+    return res.status(403).json({ message: "Token 无效或已过期" });
+  }
+}
