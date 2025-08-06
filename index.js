@@ -9,6 +9,13 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
 // server.js 中追加
 import sellerRoutes from "./routes/seller.js";
+import productRoutes from "./routes/product.js";
+import categoryRoutes from "./routes/category.js";
+import orderRoutes from "./routes/order.js";
+import uploadRoutes from "./routes/upload.js";
+import paymentRoutes from "./routes/payment.js";
+import reviewRoutes from "./routes/review.js";
+
 
 
 
@@ -47,6 +54,12 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/seller", sellerRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api", uploadRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 
 
