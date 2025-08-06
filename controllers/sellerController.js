@@ -1,5 +1,5 @@
-// src/controllers/sellerController.js
-import { pool } from '../../config/db.js'; // 确保路径正确
+// controllers/sellerController.js
+import { pool } from '../config/db.js'; // 注意：不是 ../../config，而是 ../config
 
 // 注册商家
 export const registerSeller = async (req, res) => {

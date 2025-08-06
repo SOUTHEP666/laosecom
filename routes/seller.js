@@ -1,4 +1,4 @@
-// src/routes/seller.js
+// routes/seller.js
 import express from "express";
 import { registerSeller, getSellers } from "../controllers/sellerController.js";
 
