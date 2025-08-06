@@ -6,7 +6,8 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
 // ✅ 数据库连接
-import db from "./config/db.js"; // 确保你有这个文件并正确配置连接 PG
+import { query, pool } from "./config/db.js"; // 正确写法
+// 确保你有这个文件并正确配置连接 PG
 
 // ✅ 路由导入
 import authRoutes from "./routes/auth.js";

@@ -21,7 +21,6 @@ pool.on("error", (err) => {
  * 执行 SQL 查询
  * @param {string} text - SQL 语句
  * @param {Array} params - 参数数组
- * @returns {Promise<QueryResult>}
  */
 export async function query(text, params) {
   return pool.query(text, params);
