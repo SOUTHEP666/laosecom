@@ -39,7 +39,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // 路由挂载
-app.use("/api/users", userRoutes);
+app.use("/api/auth", userRoutes);
 
 
 
