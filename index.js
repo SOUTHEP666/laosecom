@@ -5,6 +5,8 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/auth.js";
+import adminRoutes from "./routes/adminRoutes.js";
+
 
 
 
@@ -40,6 +42,7 @@ app.use(cookieParser());
 
 // 路由挂载
 app.use("/api/auth", authRoutes);
+app.use("/api/admins", adminRoutes);
 
 
 

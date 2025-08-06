@@ -1,15 +1,10 @@
-// utils/jwt.js
 import jwt from "jsonwebtoken";
-const SECRET = process.env.JWT_SECRET || "default_secret";
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
 
-export const generateToken = (user) => {
-  return jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
-    SECRET,
-    { expiresIn: "7d" }
-  );
-};
+export function generateToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+}
 
-export const verifyToken = (token) => {
-  return jwt.verify(token, SECRET);
-};
+export function verifyToken(token) {
+  return jwt.verify(token, JWT_SECRET);
+}

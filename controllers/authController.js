@@ -1,30 +1,58 @@
-// controllers/authController.js
-import { hashPassword, comparePassword } from "../utils/hash.js";
+import bcrypt from "bcrypt";
+import { query } from "../config/db.js";
 import { generateToken } from "../utils/jwt.js";
-import { findUserByUsername, createUser } from "../models/userModel.js";
 
+// 用户注册（买家/商家）
 export const register = async (req, res) => {
   const { username, password, role } = req.body;
-  if (!username || !password || role === undefined) {
-    return res.status(400).json({ message: "参数不完整" });
+
+  if (!username || !password || !role) {
+    return res.status(400).json({ message: "用户名、密码和角色不能为空" });
   }
 
-  const existing = await findUserByUsername(username);
-  if (existing) return res.status(409).json({ message: "用户名已存在" });
+  try {
+    const userCheck = await query("SELECT * FROM users WHERE username = $1", [username]);
+    if (userCheck.rows.length > 0) {
+      return res.status(409).json({ message: "用户名已存在" });
+    }
 
-  const hashed = await hashPassword(password);
-  const user = await createUser({ username, password: hashed, role });
-  res.json({ message: "注册成功", user: { id: user.id, username: user.username, role: user.role } });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await query(
+      "INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id, username, role",
+      [username, hashedPassword, role]
+    );
+
+    res.status(201).json({ message: "注册成功", user: result.rows[0] });
+  } catch (err) {
+    console.error("注册失败：", err);
+    res.status(500).json({ message: "服务器错误" });
+  }
 };
 
+// 登录
 export const login = async (req, res) => {
   const { username, password } = req.body;
-  const user = await findUserByUsername(username);
-  if (!user) return res.status(401).json({ message: "用户不存在" });
 
-  const match = await comparePassword(password, user.password);
-  if (!match) return res.status(401).json({ message: "密码错误" });
+  try {
+    const result = await query("SELECT * FROM users WHERE username = $1", [username]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "用户不存在" });
+    }
 
-  const token = generateToken(user);
-  res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
+    const user = result.rows[0];
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ message: "密码错误" });
+    }
+
+    const token = generateToken({ id: user.id, username: user.username, role: user.role });
+    res.json({
+      message: "登录成功",
+      token,
+      user: { id: user.id, username: user.username, role: user.role },
+    });
+  } catch (err) {
+    console.error("登录失败：", err);
+    res.status(500).json({ message: "服务器错误" });
+  }
 };

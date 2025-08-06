@@ -33,5 +33,8 @@
   "bugs": {
     "url": "https://github.com/SOUTHEP666/laosecom/issues"
   },
-  "homepage": "https://github.com/SOUTHEP666/laosecom#readme"
+  "homepage": "https://github.com/SOUTHEP666/laosecom#readme",
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
 }
