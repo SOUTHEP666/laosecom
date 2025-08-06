@@ -1,21 +1,21 @@
+// routes/category.js
 import express from "express";
 import {
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
+  addCategory,
+  editCategory,
+  removeCategory,
+  listAllCategories,
+  listPaginatedCategories,
 } from "../controllers/categoryController.js";
 import { authMiddleware } from "../middlewares/auth.js";
-import { isAdmin } from "../middlewares/isAdmin.js";
 
 const router = express.Router();
 
-// 公开获取所有分类
-router.get("/", getCategories);
+router.post("/", authMiddleware, addCategory);
+router.put("/:id", authMiddleware, editCategory);
+router.delete("/:id", authMiddleware, removeCategory);
 
-// 管理员权限操作
-router.post("/", authMiddleware, isAdmin, createCategory);
-router.put("/:id", authMiddleware, isAdmin, updateCategory);
-router.delete("/:id", authMiddleware, isAdmin, deleteCategory);
+router.get("/all", listAllCategories); // 前台展示
+router.get("/", authMiddleware, listPaginatedCategories); // 后台分页
 
 export default router;

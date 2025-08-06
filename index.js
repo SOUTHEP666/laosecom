@@ -5,9 +5,7 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/auth.js";
-// server.js 中追加
 import userRoutes from "./routes/user.js";
-// server.js 中追加
 import sellerRoutes from "./routes/seller.js";
 import productRoutes from "./routes/product.js";
 import categoryRoutes from "./routes/category.js";
@@ -15,6 +13,9 @@ import orderRoutes from "./routes/order.js";
 import uploadRoutes from "./routes/upload.js";
 import paymentRoutes from "./routes/payment.js";
 import reviewRoutes from "./routes/review.js";
+// app.js 中追加：
+import sellerAdminRoutes from "./routes/sellerAdmin.js";
+import productAuditRoutes from "./routes/productAudit.js";
 
 
 
@@ -60,6 +61,8 @@ app.use("/api/orders", orderRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/admin/sellers", sellerAdminRoutes);
+app.use("/api/admin/products", productAuditRoutes);
 
 
 
