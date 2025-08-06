@@ -13,6 +13,9 @@ import cartRoutes from "./routes/cart.js";
 import uploadRoutes from "./routes/upload.js";
 import categoryRoutes from "./routes/category.js";
 import sellerRoutes from './routes/seller.js';
+import adminRoutes from './routes/admin.js';
+
+
 
 dotenv.config();
 
@@ -54,6 +57,8 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use('/api/seller', sellerRoutes);
+app.use('/api/admin', adminRoutes);
+
 
 
 // 错误处理中间件（可选）
