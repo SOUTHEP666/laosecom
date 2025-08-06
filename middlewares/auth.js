@@ -80,3 +80,11 @@ export function authMiddleware(req, res, next) {
     return res.status(403).json({ message: "Token 无效或已过期" });
   }
 }
+
+export function adminOnly(req, res, next) {
+  if (req.user && req.user.role === 0) {
+    next();
+  } else {
+    res.status(403).json({ message: "仅限管理员访问" });
+  }
+}
