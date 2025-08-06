@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import pool from "../config/db.js";
+import { pool } from "../config/db.js";
 
 // 商家入驻申请接口
 export const applyMerchant = async (req, res) => {
