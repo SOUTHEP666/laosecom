@@ -28,23 +28,13 @@ const allowedOrigins = [
   "https://laostrade-admin.netlify.app",
 ];
 
-// CORS 配置 - 一定要放在所有路由前面
-app.use(cors({
-  origin: function (origin, callback) {
-    // 允许无 origin（非浏览器请求）或者白名单内的 origin 访问
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true, // 允许携带 cookie
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+// 请求日志，帮助调试
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
 
-// 显式处理预检请求，避免 OPTIONS 请求被阻断
-app.options("*", cors({
+app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -57,12 +47,12 @@ app.options("*", cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// 解析请求体
+app.options("*", cors());
+
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// 路由挂载
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/seller", sellerRoutes);
@@ -75,7 +65,6 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin/sellers", sellerAdminRoutes);
 app.use("/api/admin/products", productAuditRoutes);
 
-// 错误处理中间件（可选）
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: err.message || "服务器内部错误" });
