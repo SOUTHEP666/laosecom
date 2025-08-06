@@ -11,16 +11,6 @@ import { query, pool } from "./config/db.js"; // 正确写法
 
 // ✅ 路由导入
 import authRoutes from "./routes/auth.js";
-import userRoutes from "./routes/user.js";
-import sellerRoutes from "./routes/seller.js";
-import productRoutes from "./routes/product.js";
-import categoryRoutes from "./routes/category.js";
-import orderRoutes from "./routes/order.js";
-import uploadRoutes from "./routes/upload.js";
-import paymentRoutes from "./routes/payment.js";
-import reviewRoutes from "./routes/review.js";
-import sellerAdminRoutes from "./routes/sellerAdmin.js";
-import productAuditRoutes from "./routes/productAudit.js";
 
 dotenv.config();
 
@@ -66,16 +56,6 @@ app.use(cookieParser());
 
 // ✅ 路由挂载
 app.use("/api/auth", authRoutes);
-app.use("/api/user", userRoutes);
-app.use("/api/seller", sellerRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api", uploadRoutes);
-app.use("/api/payments", paymentRoutes);
-app.use("/api/reviews", reviewRoutes);
-app.use("/api/admin/sellers", sellerAdminRoutes);
-app.use("/api/admin/products", productAuditRoutes);
 
 // ✅ 健康检查接口
 app.get("/health", (req, res) => {
