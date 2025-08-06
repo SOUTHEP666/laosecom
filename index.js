@@ -7,6 +7,8 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.js";
 // server.js 中追加
 import userRoutes from "./routes/user.js";
+// server.js 中追加
+import sellerRoutes from "./routes/seller.js";
 
 
 
@@ -44,6 +46,7 @@ app.use(cookieParser());
 // 路由挂载
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/seller", sellerRoutes);
 
 
 
