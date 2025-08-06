@@ -1,33 +1,58 @@
-import db from "../db.js";
 import bcrypt from "bcrypt";
+import { query } from "../config/db.js";
+import { generateToken } from "../utils/jwt.js";
 
+// 用户注册（买家/商家）
 export const register = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, role } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ message: "用户名和密码不能为空" });
+  if (!username || !password || !role) {
+    return res.status(400).json({ message: "用户名、密码和角色不能为空" });
   }
 
   try {
-    // 检查用户名是否存在
-    const userCheck = await db.query("SELECT * FROM users WHERE username = $1", [username]);
+    const userCheck = await query("SELECT * FROM users WHERE username = $1", [username]);
     if (userCheck.rows.length > 0) {
-      return res.status(400).json({ message: "用户名已存在" });
+      return res.status(409).json({ message: "用户名已存在" });
     }
 
-    // 密码加密
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await query(
+      "INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id, username, role",
+      [username, hashedPassword, role]
+    );
 
-    // 插入用户
-    await db.query("INSERT INTO users (username, password) VALUES ($1, $2)", [
-      username,
-      hashedPassword,
-    ]);
-
-    res.status(201).json({ message: "注册成功" });
+    res.status(201).json({ message: "注册成功", user: result.rows[0] });
   } catch (err) {
-    console.error("注册失败:", err);
+    console.error("注册失败：", err);
+    res.status(500).json({ message: "服务器错误" });
+  }
+};
+
+// 登录
+export const login = async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const result = await query("SELECT * FROM users WHERE username = $1", [username]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "用户不存在" });
+    }
+
+    const user = result.rows[0];
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ message: "密码错误" });
+    }
+
+    const token = generateToken({ id: user.id, username: user.username, role: user.role });
+    res.json({
+      message: "登录成功",
+      token,
+      user: { id: user.id, username: user.username, role: user.role },
+    });
+  } catch (err) {
+    console.error("登录失败：", err);
     res.status(500).json({ message: "服务器错误" });
   }
 };
