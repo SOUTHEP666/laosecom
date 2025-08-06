@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
-import userRoutes from "./routes/auth.js";
+import authRoutes from "./routes/auth.js";
 
 
 
@@ -39,7 +39,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // 路由挂载
-app.use("/api/auth", userRoutes);
+app.use("/api/auth", authRoutes);
 
 
 
