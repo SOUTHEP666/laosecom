@@ -38,7 +38,7 @@ export const createProduct = async (req, res) => {
 // 获取所有商品（GET /api/products）
 export const getAllProducts = async (req, res) => {
   try {
-    const { category_id, status } = req.query;
+    const { category_id, status, keyword } = req.query;
     let sql = 'SELECT * FROM products WHERE 1=1';
     const params = [];
     let idx = 1;
@@ -51,6 +51,11 @@ export const getAllProducts = async (req, res) => {
     if (status) {
       sql += ` AND status = $${idx++}`;
       params.push(status);
+    }
+
+    if (keyword) {
+      sql += ` AND title ILIKE $${idx++}`;
+      params.push(`%${keyword}%`);
     }
 
     const result = await query(sql, params);

@@ -13,8 +13,6 @@ import cartRoutes from "./routes/cart.js";
 import uploadRoutes from "./routes/upload.js";
 import categoryRoutes from "./routes/category.js";
 
-
-
 dotenv.config();
 
 const app = express();
@@ -40,7 +38,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// 解析 JSON 和 urlencoded 格式请求体
+// 解析请求体
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -55,7 +53,11 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/categories", categoryRoutes);
 
-
+// 错误处理中间件（可选）
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: err.message || "服务器内部错误" });
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
