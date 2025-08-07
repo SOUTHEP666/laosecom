@@ -7,11 +7,10 @@ const router = express.Router();
 router.use(authMiddleware, authorizeRoles(3)); // 仅一级管理员
 
 // GET /api/admin/users?page=1&pageSize=10&search=abc&role=2
+// backend/routes/admin.js (或 adminController.js 里对应函数)
 router.get("/users", async (req, res) => {
   const { page = 1, pageSize = 10, search = "", role } = req.query;
-
   const offset = (page - 1) * pageSize;
-
   try {
     let baseQuery = "SELECT id, username, email, role, created_at FROM users WHERE 1=1";
     const params = [];
@@ -27,15 +26,20 @@ router.get("/users", async (req, res) => {
     }
 
     // 查询总数
-    const countResult = await pool.query(baseQuery.replace("SELECT id, username, email, role, created_at", "SELECT COUNT(*)"), params);
+    const countQuery = baseQuery.replace(
+      "SELECT id, username, email, role, created_at",
+      "SELECT COUNT(*)"
+    );
+    const countResult = await pool.query(countQuery, params);
     const total = parseInt(countResult.rows[0].count);
 
-    // 添加排序和分页
+    // 添加分页
     params.push(pageSize, offset);
     baseQuery += ` ORDER BY id DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
     const dataResult = await pool.query(baseQuery, params);
 
+    // 返回统一格式
     res.json({
       total,
       page: Number(page),
@@ -47,6 +51,7 @@ router.get("/users", async (req, res) => {
     res.status(500).json({ message: "查询失败" });
   }
 });
+
 
 // PUT /api/admin/user/:id
 router.put("/user/:id", async (req, res) => {
