@@ -1,11 +1,10 @@
 // routes/merchantProducts.js
 import express from "express";
 import { query } from "../config/db.js";
-import authMiddleware from "../middleware/auth.js";
-
+import { authenticate, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
-router.use(authMiddleware); // 验证登录
+router.use(authenticate); // 验证登录
 
 router.get("/products", async (req, res) => {
   try {
