@@ -36,9 +36,13 @@ export const register = async (req, res) => {
 
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { account, password } = req.body;  // 这里用 account 代替 username/email
   try {
-    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    // 用户名或邮箱都可以登录
+    const result = await query(
+      `SELECT * FROM users WHERE username = $1 OR email = $1`,
+      [account]
+    );
     const user = result.rows[0];
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
