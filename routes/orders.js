@@ -172,4 +172,30 @@ router.patch('/:id/confirm', authenticate, authorize(['customer']), async (req, 
   }
 });
 
+// 获取单个订单详情（管理员查看）
+router.get('/:id', async (req, res) => {
+  const orderId = req.params.id;
+
+  try {
+    const { rows } = await pool.query(`
+      SELECT o.*, p.name as product_name, u.username as buyer_name, m.store_name as merchant_name
+      FROM orders o
+      LEFT JOIN products p ON o.product_id = p.id
+      LEFT JOIN users u ON o.user_id = u.id
+      LEFT JOIN merchants m ON o.merchant_id = m.id
+      WHERE o.id = $1
+    `, [orderId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('查询订单详情失败', err);
+    res.status(500).json({ error: '查询订单失败' });
+  }
+});
+
+
 export default router;
