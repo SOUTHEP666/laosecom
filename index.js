@@ -4,17 +4,9 @@ import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
-import { query, pool } from "./config/db.js";
+
 
 import authRoutes from "./routes/auth.js";
-import protectedRoutes from "./routes/protected.js";
-import adminRoutes from "./routes/admin.js";
-import merchantRoutes from "./routes/merchant.js";
-import productRoutes from "./routes/products.js";
-import orderRoutes from "./routes/orders.js";
-import settlementRoutes from "./routes/settlement.js";
-
-
 
 
 
@@ -60,18 +52,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
-app.use("/api/protected", protectedRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/merchant", merchantRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/settlement", settlementRoutes);
-
-
-
-
-
-
 
 
 
