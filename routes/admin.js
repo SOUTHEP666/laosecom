@@ -4,10 +4,9 @@ import { pool } from "../config/db.js";
 
 const router = express.Router();
 
-router.use(authMiddleware, authorizeRoles(3)); // 仅一级管理员
+router.use(authMiddleware, authorizeRoles(3)); // 仅一级管理员可访问
 
-// GET /api/admin/users?page=1&pageSize=10&search=abc&role=2
-// backend/routes/admin.js (或 adminController.js 里对应函数)
+// 查询用户，支持分页、搜索、角色过滤
 router.get("/users", async (req, res) => {
   const { page = 1, pageSize = 10, search = "", role } = req.query;
   const offset = (page - 1) * pageSize;
@@ -25,7 +24,6 @@ router.get("/users", async (req, res) => {
       baseQuery += ` AND role = $${params.length}`;
     }
 
-    // 查询总数
     const countQuery = baseQuery.replace(
       "SELECT id, username, email, role, created_at",
       "SELECT COUNT(*)"
@@ -33,13 +31,11 @@ router.get("/users", async (req, res) => {
     const countResult = await pool.query(countQuery, params);
     const total = parseInt(countResult.rows[0].count);
 
-    // 添加分页
     params.push(pageSize, offset);
     baseQuery += ` ORDER BY id DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
     const dataResult = await pool.query(baseQuery, params);
 
-    // 返回统一格式
     res.json({
       total,
       page: Number(page),
@@ -52,8 +48,7 @@ router.get("/users", async (req, res) => {
   }
 });
 
-
-// PUT /api/admin/user/:id
+// 更新用户角色
 router.put("/user/:id", async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
@@ -73,7 +68,7 @@ router.put("/user/:id", async (req, res) => {
   }
 });
 
-// DELETE /api/admin/user/:id
+// 删除用户
 router.delete("/user/:id", async (req, res) => {
   const { id } = req.params;
   try {
