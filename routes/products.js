@@ -1,68 +1,75 @@
 import express from "express";
-import { authMiddleware } from "../middlewares/auth.js";
-import { pool } from "../config/db.js";
+import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// 获取当前商家所有商品
-router.get("/my", authMiddleware, async (req, res) => {
+// 获取指定商家的所有商品
+router.get("/:merchantId", async (req, res) => {
+  const { merchantId } = req.params;
   try {
-    const userId = req.user.id;
-    const result = await pool.query("SELECT * FROM products WHERE merchant_id=$1", [userId]);
+    const result = await query(
+      "SELECT * FROM products WHERE merchant_id = $1 ORDER BY created_at DESC",
+      [merchantId]
+    );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ message: "获取商品失败", error: err.message });
+    console.error("查询商品失败", err);
+    res.status(500).json({ message: "查询商品失败" });
   }
 });
 
-// 添加商品
-router.post("/", authMiddleware, async (req, res) => {
+// 新增商品
+router.post("/:merchantId", async (req, res) => {
+  const { merchantId } = req.params;
+  const { name, description, price, stock } = req.body;
   try {
-    const userId = req.user.id;
-    const { name, price, status } = req.body;
-    const result = await pool.query(
-      "INSERT INTO products (merchant_id, name, price, status, created_at) VALUES ($1,$2,$3,$4,NOW()) RETURNING *",
-      [userId, name, price, status]
+    const result = await query(
+      `INSERT INTO products (merchant_id, name, description, price, stock) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [merchantId, name, description, price, stock]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("添加商品失败：", err.stack);
-    res.status(500).json({ message: "添加商品失败", error: err.message });
+    console.error("新增商品失败", err);
+    res.status(500).json({ message: "新增商品失败" });
   }
 });
 
-
-
-// 编辑商品
-router.put("/:id", authMiddleware, async (req, res) => {
+// 修改商品
+router.put("/:merchantId/:productId", async (req, res) => {
+  const { merchantId, productId } = req.params;
+  const { name, description, price, stock } = req.body;
   try {
-    const userId = req.user.id;
-    const { id } = req.params;
-    const { name, price, status } = req.body;
-    // 确保商品属于当前商家
-    const check = await pool.query("SELECT * FROM products WHERE id=$1 AND merchant_id=$2", [id, userId]);
-    if (check.rows.length === 0) return res.status(403).json({ message: "无权限操作该商品" });
-
-    await pool.query("UPDATE products SET name=$1, price=$2, status=$3 WHERE id=$4", [name, price, status, id]);
-    res.json({ message: "商品更新成功" });
+    const result = await query(
+      `UPDATE products SET name=$1, description=$2, price=$3, stock=$4, updated_at=NOW() 
+       WHERE id=$5 AND merchant_id=$6 RETURNING *`,
+      [name, description, price, stock, productId, merchantId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "商品不存在或无权限" });
+    }
+    res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ message: "更新商品失败", error: err.message });
+    console.error("更新商品失败", err);
+    res.status(500).json({ message: "更新商品失败" });
   }
 });
 
 // 删除商品
-router.delete("/:id", authMiddleware, async (req, res) => {
+router.delete("/:merchantId/:productId", async (req, res) => {
+  const { merchantId, productId } = req.params;
   try {
-    const userId = req.user.id;
-    const { id } = req.params;
-    // 权限验证
-    const check = await pool.query("SELECT * FROM products WHERE id=$1 AND merchant_id=$2", [id, userId]);
-    if (check.rows.length === 0) return res.status(403).json({ message: "无权限删除该商品" });
-
-    await pool.query("DELETE FROM products WHERE id=$1", [id]);
-    res.json({ message: "商品删除成功" });
+    const result = await query(
+      "DELETE FROM products WHERE id=$1 AND merchant_id=$2 RETURNING *",
+      [productId, merchantId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "商品不存在或无权限" });
+    }
+    res.json({ message: "删除成功" });
   } catch (err) {
-    res.status(500).json({ message: "删除商品失败", error: err.message });
+    console.error("删除商品失败", err);
+    res.status(500).json({ message: "删除商品失败" });
   }
 });
 
