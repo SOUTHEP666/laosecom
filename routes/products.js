@@ -1,7 +1,7 @@
 // backend/routes/products.js
 import express from "express";
 import { query } from "../config/db.js";
-import { authMiddleware, authorizeRoles } from "../middleware/auth.js";
+import { authMiddleware, authorizeRoles } from "../middlewares/auth.js";
 
 const router = express.Router();
 
