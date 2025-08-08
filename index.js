@@ -7,6 +7,10 @@ import cookieParser from "cookie-parser";
 
 
 import authRoutes from "./routes/auth.js";
+import userRoutes from './routes/users.js';
+import merchantRoutes from './routes/merchants.js';
+import orderRoutes from "./routes/orders.js";
+import notificationsRouter from './routes/notifications.js';
 
 
 
@@ -52,7 +56,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
-
+app.use('/api/users', userRoutes);
+app.use('/api/merchants', merchantRoutes);
+app.use("/api/orders", orderRoutes);
+router.use('/notifications', notificationsRouter);
 
 
 
