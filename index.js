@@ -9,10 +9,15 @@ import { query, pool } from "./config/db.js";
 import authRoutes from "./routes/auth.js";
 import protectedRoutes from "./routes/protected.js";
 import adminRoutes from "./routes/admin.js";
-import merchantRoutes from "./routes/merchantRoutes.js";
+import merchantRoutes from "./routes/merchant.js";
 import productRoutes from "./routes/products.js";
 import orderRoutes from "./routes/orders.js";
 import settlementRoutes from "./routes/settlement.js";
+
+
+
+
+
 
 dotenv.config();
 
@@ -61,6 +66,16 @@ app.use("/api/merchant", merchantRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/settlement", settlementRoutes);
+
+
+
+
+
+
+
+
+
+
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
