@@ -1,38 +1,52 @@
 import express from "express";
-import { authMiddleware } from "../middlewares/auth.js";
-import { pool } from "../config/db.js";
+import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// 获取商家订单列表
-router.get("/my", authMiddleware, async (req, res) => {
+// 获取商家的所有订单
+router.get("/merchant/:merchantId", async (req, res) => {
+  const { merchantId } = req.params;
   try {
-    const userId = req.user.id;
-    const result = await pool.query(
-      "SELECT * FROM orders WHERE merchant_id=$1 ORDER BY created_at DESC",
-      [userId]
+    const ordersRes = await query(
+      `SELECT * FROM orders WHERE merchant_id = $1 ORDER BY created_at DESC`,
+      [merchantId]
     );
-    res.json(result.rows);
+
+    const orders = ordersRes.rows;
+
+    // 查询每个订单的商品项
+    for (const order of orders) {
+      const itemsRes = await query(
+        `SELECT * FROM order_items WHERE order_id = $1`,
+        [order.id]
+      );
+      order.items = itemsRes.rows;
+    }
+
+    res.json(orders);
   } catch (err) {
-    res.status(500).json({ message: "获取订单失败", error: err.message });
+    console.error("查询订单失败", err);
+    res.status(500).json({ message: "查询订单失败" });
   }
 });
 
-// 更新订单状态
-router.put("/:id/status", authMiddleware, async (req, res) => {
+// 修改订单状态（发货、完成等）
+router.put("/:orderId/status", async (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body;
+
   try {
-    const userId = req.user.id;
-    const { id } = req.params;
-    const { status } = req.body;
-
-    // 订单归属验证
-    const check = await pool.query("SELECT * FROM orders WHERE id=$1 AND merchant_id=$2", [id, userId]);
-    if (check.rows.length === 0) return res.status(403).json({ message: "无权限操作该订单" });
-
-    await pool.query("UPDATE orders SET status=$1 WHERE id=$2", [status, id]);
-    res.json({ message: "订单状态更新成功" });
+    const result = await query(
+      `UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status, orderId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "订单不存在" });
+    }
+    res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ message: "更新订单失败", error: err.message });
+    console.error("更新订单状态失败", err);
+    res.status(500).json({ message: "更新订单失败" });
   }
 });
 
