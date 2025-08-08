@@ -1,7 +1,7 @@
 // ===================== authController.js =====================
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { query } from '../db.js';
+import { query } from '../config/db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'yoursecretkey';
 
