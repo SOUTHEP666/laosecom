@@ -1,5 +1,5 @@
 import express from "express";
-import authMiddleware from "../middleware/auth.js"; // 验证token及角色
+import authMiddleware from "../middlewares/auth.js"; // 验证token及角色
 import { pool } from "../config/db.js";
 
 const router = express.Router();
