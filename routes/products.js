@@ -19,25 +19,18 @@ router.get("/my", authMiddleware, async (req, res) => {
 router.post("/", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log("添加商品请求体:", req.body);
-    console.log("当前用户ID:", userId);
-
     const { name, price, status } = req.body;
-
-    if (!name || typeof name !== "string") return res.status(400).json({ message: "商品名称必填" });
-    if (typeof price !== "number" || price <= 0) return res.status(400).json({ message: "价格必须为正数" });
-    if (!["active", "inactive"].includes(status)) return res.status(400).json({ message: "状态无效" });
-
     const result = await pool.query(
       "INSERT INTO products (merchant_id, name, price, status, created_at) VALUES ($1,$2,$3,$4,NOW()) RETURNING *",
       [userId, name, price, status]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("添加商品失败:", err.stack);
+    console.error("添加商品失败：", err.stack);
     res.status(500).json({ message: "添加商品失败", error: err.message });
   }
 });
+
 
 
 // 编辑商品
