@@ -88,6 +88,7 @@ router.get("/:id", authenticate, authorize(["merchant"]), async (req, res) => {
 // 新增商品
 router.post("/", authenticate, authorize(["merchant"]), async (req, res) => {
   try {
+    console.log('新增商品请求体:', req.body);
     const {
       product_name,
       product_description,
