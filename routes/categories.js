@@ -33,8 +33,9 @@ router.get('/', async (req, res) => {
 });
 
 // 新增分类
-router.post('/', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
-  const { category_name, parent_id = null, description = '', image_url = '' } = req.body;
+router.post('/', /* authenticate, authorize(['admin', 'superadmin']), */ async (req, res) => {
+  console.log('收到新增分类请求，body:', req.body);
+    const { category_name, parent_id = null, description = '', image_url = '' } = req.body;
   try {
     const result = await query(
       'INSERT INTO categories (category_name, parent_id, description, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
