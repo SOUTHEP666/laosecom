@@ -17,18 +17,19 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
-// 上传图片接口（支持单张）
+// 上传图片接口（支持多张）
 router.post(
   "/upload",
   authenticate,
   authorize(["merchant"]),
-  upload.single("image"),
+  upload.array("images", 5),  // 改成支持多张，字段名 images，最大5张
   (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No image file uploaded" });
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "No image files uploaded" });
       }
-      res.json({ imageUrl: req.file.path });
+      const imageUrls = req.files.map(file => file.path);
+      res.json({ imageUrls });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Image upload failed" });
