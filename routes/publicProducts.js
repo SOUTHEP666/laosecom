@@ -3,6 +3,7 @@ import { query } from "../config/db.js";
 
 const router = express.Router();
 
+// 产品列表接口（你已有）
 router.get("/all", async (req, res) => {
   try {
     const { page = 1, limit = 12, keyword = "", category = "" } = req.query;
@@ -36,7 +37,6 @@ router.get("/all", async (req, res) => {
 
     const result = await query(sql, values);
 
-    // 统计总数（用于分页）
     const countResult = await query(
       `SELECT COUNT(*) FROM products WHERE name ILIKE $1 AND ($2 = '' OR category = $2)`,
       [`%${keyword}%`, category]
@@ -46,6 +46,47 @@ router.get("/all", async (req, res) => {
       data: result.rows,
       total: Number(countResult.rows[0].count),
     });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "服务器内部错误" });
+  }
+});
+
+// 新增：产品详情接口
+router.get("/detail/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const sql = `
+      SELECT
+        p.id AS product_id,
+        p.name AS product_name,
+        p.price,
+        p.stock,
+        p.category,
+        p.images,
+        p.detail,               -- 商品详细描述字段，需确认你的表中有
+        m.id AS merchant_id,
+        m.store_name,
+        m.description AS merchant_description,
+        m.status AS merchant_status,
+        u.id AS user_id,
+        u.username,
+        u.email
+      FROM products p
+      LEFT JOIN merchants m ON p.merchant_id = m.id
+      LEFT JOIN users u ON m.user_id = u.id
+      WHERE p.id = $1
+      LIMIT 1
+    `;
+
+    const result = await query(sql, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "商品未找到" });
+    }
+
+    res.json({ data: result.rows[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "服务器内部错误" });
