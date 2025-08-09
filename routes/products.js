@@ -1,193 +1,222 @@
 import express from "express";
-import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// Cloudinary 配置（确保环境变量已配置）
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-// 设置 multer-storage-cloudinary 存储
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: "products",
-    allowed_formats: ["jpg", "jpeg", "png", "gif"],
-  },
-});
-
-const upload = multer({ storage });
-
-// 多文件上传，字段名必须和前端一致
-router.post(
-  "/upload",
-  authenticate,
-  authorize(["merchant"]),
-  upload.array("images", 5),  // 注意这里的字段名 "images"
-  (req, res) => {
-    try {
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: "No image files uploaded" });
-      }
-      const imageUrls = req.files.map((file) => file.path);
-      res.json({ imageUrls });  // 返回图片地址数组
-    } catch (err) {
-      console.error("上传图片出错:", err);
-      res.status(500).json({ error: "Image upload failed" });
-    }
-  }
-);
-
-
-
-
-// 获取商家商品列表，支持分页、搜索、分类
+// 获取商品列表（分页+搜索+过滤）
 router.get("/", authenticate, authorize(["merchant"]), async (req, res) => {
-  const { page = 1, limit = 10, keyword = "", category = "" } = req.query;
-  const offset = (page - 1) * limit;
-
   try {
-    let whereClauses = ["merchant_id = $1"];
-    let values = [req.user.id];
-    let idx = 2;
+    const {
+      page = 1,
+      limit = 10,
+      keyword = "",
+      is_active,
+      is_featured,
+      is_bestseller,
+      is_new,
+    } = req.query;
+
+    const offset = (page - 1) * limit;
+    let whereClauses = [];
+    let values = [];
+    let idx = 1;
 
     if (keyword) {
-      whereClauses.push(`name ILIKE $${idx++}`);
+      whereClauses.push(`product_name ILIKE $${idx++}`);
       values.push(`%${keyword}%`);
     }
-    if (category) {
-      whereClauses.push(`category = $${idx++}`);
-      values.push(category);
+    if (typeof is_active !== "undefined") {
+      whereClauses.push(`is_active = $${idx++}`);
+      values.push(is_active === "true");
+    }
+    if (typeof is_featured !== "undefined") {
+      whereClauses.push(`is_featured = $${idx++}`);
+      values.push(is_featured === "true");
+    }
+    if (typeof is_bestseller !== "undefined") {
+      whereClauses.push(`is_bestseller = $${idx++}`);
+      values.push(is_bestseller === "true");
+    }
+    if (typeof is_new !== "undefined") {
+      whereClauses.push(`is_new = $${idx++}`);
+      values.push(is_new === "true");
     }
 
-    const whereSQL =
-      whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
+    const whereSQL = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
 
+    // 统计总数
     const totalRes = await query(`SELECT COUNT(*) FROM products ${whereSQL}`, values);
     const total = parseInt(totalRes.rows[0].count);
 
-    const sql = `
-      SELECT id, name, description, price, stock, images, category, created_at, updated_at
-      FROM products
-      ${whereSQL}
-      ORDER BY created_at DESC
-      LIMIT $${idx++} OFFSET $${idx}
-    `;
-
+    // 查询数据
     values.push(limit);
     values.push(offset);
-
+    const sql = `
+      SELECT * FROM products
+      ${whereSQL}
+      ORDER BY date_created DESC
+      LIMIT $${idx++} OFFSET $${idx}
+    `;
     const result = await query(sql, values);
 
-    const products = result.rows.map((p) => ({
-      ...p,
-      images: p.images ? JSON.parse(p.images) : [],
-    }));
-
-    res.json({ total, data: products });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch products" });
+    res.json({
+      total,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("获取商品列表失败:", error);
+    res.status(500).json({ error: "获取商品列表失败" });
   }
 });
 
-// 获取商品详情
+// 获取单个商品详情
 router.get("/:id", authenticate, authorize(["merchant"]), async (req, res) => {
-  const { id } = req.params;
   try {
-    const result = await query(
-      "SELECT * FROM products WHERE id = $1 AND merchant_id = $2",
-      [id, req.user.id]
-    );
+    const { id } = req.params;
+    const result = await query("SELECT * FROM products WHERE product_id = $1", [id]);
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Product not found" });
+      return res.status(404).json({ error: "商品不存在" });
     }
-    const product = result.rows[0];
-    product.images = product.images ? JSON.parse(product.images) : [];
-    res.json(product);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to get product" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("获取商品详情失败:", error);
+    res.status(500).json({ error: "获取商品详情失败" });
   }
 });
 
 // 新增商品
 router.post("/", authenticate, authorize(["merchant"]), async (req, res) => {
-  const { name, description, price, stock, images, category } = req.body;
   try {
-    const imagesStr = images && Array.isArray(images) ? JSON.stringify(images) : JSON.stringify([]);
+    const {
+      product_name,
+      product_description,
+      short_description,
+      sku,
+      barcode,
+      price,
+      sale_price,
+      cost_price,
+      weight,
+      dimensions,
+      stock_quantity,
+      min_stock_threshold,
+      is_active = true,
+      is_featured = false,
+      is_bestseller = false,
+      is_new = false,
+    } = req.body;
+
     const result = await query(
-      `
-      INSERT INTO products (merchant_id, name, description, price, stock, images, category, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-      RETURNING *
-    `,
-      [req.user.id, name, description, price, stock, imagesStr, category]
+      `INSERT INTO products
+        (product_name, product_description, short_description, sku, barcode, price, sale_price, cost_price,
+         weight, dimensions, stock_quantity, min_stock_threshold, is_active, is_featured, is_bestseller, is_new, date_created, date_modified)
+       VALUES
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW(),NOW())
+       RETURNING *`,
+      [
+        product_name,
+        product_description,
+        short_description,
+        sku,
+        barcode,
+        price,
+        sale_price,
+        cost_price,
+        weight,
+        dimensions,
+        stock_quantity,
+        min_stock_threshold,
+        is_active,
+        is_featured,
+        is_bestseller,
+        is_new,
+      ]
     );
-    const product = result.rows[0];
-    product.images = images;
-    res.status(201).json(product);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to add product" });
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error("新增商品失败:", error);
+    res.status(500).json({ error: "新增商品失败" });
   }
 });
 
-// 更新商品
+// 修改商品
 router.put("/:id", authenticate, authorize(["merchant"]), async (req, res) => {
-  const { id } = req.params;
-  const { name, description, price, stock, images, category } = req.body;
   try {
-    const check = await query("SELECT * FROM products WHERE id = $1 AND merchant_id = $2", [
-      id,
-      req.user.id,
-    ]);
-    if (check.rows.length === 0) {
-      return res.status(403).json({ error: "No permission to update this product" });
-    }
-    const imagesStr = images && Array.isArray(images) ? JSON.stringify(images) : JSON.stringify([]);
-    await query(
-      `
-      UPDATE products SET name=$1, description=$2, price=$3, stock=$4, images=$5, category=$6, updated_at=NOW()
-      WHERE id=$7
-    `,
-      [name, description, price, stock, imagesStr, category, id]
+    const { id } = req.params;
+    const {
+      product_name,
+      product_description,
+      short_description,
+      sku,
+      barcode,
+      price,
+      sale_price,
+      cost_price,
+      weight,
+      dimensions,
+      stock_quantity,
+      min_stock_threshold,
+      is_active,
+      is_featured,
+      is_bestseller,
+      is_new,
+    } = req.body;
+
+    const result = await query(
+      `UPDATE products SET
+        product_name=$1, product_description=$2, short_description=$3, sku=$4, barcode=$5,
+        price=$6, sale_price=$7, cost_price=$8, weight=$9, dimensions=$10, stock_quantity=$11,
+        min_stock_threshold=$12, is_active=$13, is_featured=$14, is_bestseller=$15, is_new=$16,
+        date_modified=NOW()
+       WHERE product_id = $17
+       RETURNING *`,
+      [
+        product_name,
+        product_description,
+        short_description,
+        sku,
+        barcode,
+        price,
+        sale_price,
+        cost_price,
+        weight,
+        dimensions,
+        stock_quantity,
+        min_stock_threshold,
+        is_active,
+        is_featured,
+        is_bestseller,
+        is_new,
+        id,
+      ]
     );
-    res.json({ message: "Product updated successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to update product" });
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "商品不存在" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("修改商品失败:", error);
+    res.status(500).json({ error: "修改商品失败" });
   }
 });
 
 // 删除商品
 router.delete("/:id", authenticate, authorize(["merchant"]), async (req, res) => {
-  const { id } = req.params;
   try {
-    const check = await query("SELECT * FROM products WHERE id = $1 AND merchant_id = $2", [
-      id,
-      req.user.id,
-    ]);
-    if (check.rows.length === 0) {
-      return res.status(403).json({ error: "No permission to delete this product" });
+    const { id } = req.params;
+    const result = await query("DELETE FROM products WHERE product_id = $1", [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "商品不存在" });
     }
-    await query("DELETE FROM products WHERE id = $1", [id]);
-    res.json({ message: "Product deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to delete product" });
+    res.json({ message: "删除成功" });
+  } catch (error) {
+    console.error("删除商品失败:", error);
+    res.status(500).json({ error: "删除商品失败" });
   }
 });
-
-
-
-
 
 export default router;
