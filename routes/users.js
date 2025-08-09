@@ -26,17 +26,21 @@ router.delete('/:id', authenticate, authorize(['superadmin']), async (req, res) 
 });
 
 // 获取当前用户信息
-router.get("/info", authenticate, async (req, res) => {
+router.get("/info", verifyToken, async (req, res) => {
   try {
-    const sql = "SELECT id, name, username, avatar, email FROM users WHERE id = $1";
-    const result = await query(sql, [req.userId]);
-    if (result.rows.length === 0) return res.status(404).json({ message: "用户不存在" });
+    const userId = req.user.id;
+    const result = await query(
+      "SELECT id, username, email, role FROM users WHERE id = $1",
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "用户不存在" });
+    }
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ message: "服务器错误" });
   }
 });
-
 
 // 收货地址列表
 router.get("/addresses", authenticate, async (req, res) => {
