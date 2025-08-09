@@ -11,6 +11,8 @@ import userRoutes from './routes/users.js';
 import merchantRoutes from './routes/merchants.js';
 import orderRoutes from "./routes/orders.js";
 import notificationsRouter from './routes/notifications.js';
+import adminRoutes from "./routes/admin.js";
+
 
 
 
@@ -60,7 +62,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/merchants', merchantRoutes);
 app.use("/api/orders", orderRoutes);
 app.use('/notifications', notificationsRouter);
-
+app.use("/api/admin", adminRoutes);
 
 
 
