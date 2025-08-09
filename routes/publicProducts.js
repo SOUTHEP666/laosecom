@@ -17,9 +17,9 @@ router.get("/all", async (req, res) => {
         p.category,
         p.images,
         m.id AS merchant_id,
-        m.company_name,
-        m.phone,
-        m.address,
+        m.store_name,
+        m.description AS merchant_description,
+        m.status AS merchant_status,
         u.id AS user_id,
         u.username,
         u.email
@@ -27,7 +27,7 @@ router.get("/all", async (req, res) => {
       LEFT JOIN merchants m ON p.merchant_id = m.id
       LEFT JOIN users u ON m.user_id = u.id
       WHERE p.name ILIKE $1
-      AND ($2 = '' OR p.category = $2)
+        AND ($2 = '' OR p.category = $2)
       ORDER BY p.created_at DESC
       LIMIT $3 OFFSET $4
     `;
