@@ -1,62 +1,54 @@
-// routes/publicProducts.js
 import express from "express";
 import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// 获取所有商家商品（分页、关键词、分类筛选）
 router.get("/all", async (req, res) => {
-  const { page = 1, limit = 12, keyword = "", category = "" } = req.query;
-  const offset = (page - 1) * limit;
-
   try {
-    let conditions = [];
-    let values = [];
-    let idx = 1;
+    const { page = 1, limit = 12, keyword = "", category = "" } = req.query;
+    const offset = (page - 1) * limit;
 
-    if (keyword) {
-      conditions.push(`p.name ILIKE $${idx++}`);
-      values.push(`%${keyword}%`);
-    }
-    if (category) {
-      conditions.push(`p.category = $${idx++}`);
-      values.push(category);
-    }
-
-    const whereClause = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
-
-    // 计算总数
-    const countSql = `SELECT COUNT(*) FROM products p ${whereClause}`;
-    const countResult = await query(countSql, values);
-    const total = parseInt(countResult.rows[0].count);
-
-    // 查询数据
-    values.push(limit, offset);
-    const dataSql = `
+    const sql = `
       SELECT
-        p.id, p.name, p.description, p.price, p.stock, p.images, p.category,
-        m.name AS seller_name
+        p.id AS product_id,
+        p.name AS product_name,
+        p.price,
+        p.stock,
+        p.category,
+        p.images,
+        m.id AS merchant_id,
+        m.company_name,
+        m.phone,
+        m.address,
+        u.id AS user_id,
+        u.username,
+        u.email
       FROM products p
       LEFT JOIN merchants m ON p.merchant_id = m.id
-      ${whereClause}
+      LEFT JOIN users u ON m.user_id = u.id
+      WHERE p.name ILIKE $1
+      AND ($2 = '' OR p.category = $2)
       ORDER BY p.created_at DESC
-      LIMIT $${idx++} OFFSET $${idx++}
+      LIMIT $3 OFFSET $4
     `;
-    const dataResult = await query(dataSql, values);
 
-    const data = dataResult.rows.map((row) => ({
-      ...row,
-      images: row.images ? JSON.parse(row.images) : [],
-    }));
+    const values = [`%${keyword}%`, category, limit, offset];
 
-    // 这里还可以返回当前所有商品类别，供前端筛选用
-    const categoriesResult = await query("SELECT DISTINCT category FROM products");
-    const categories = categoriesResult.rows.map((r) => r.category);
+    const result = await query(sql, values);
 
-    res.json({ total, data, categories });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "获取商品失败" });
+    // 统计总数（用于分页）
+    const countResult = await query(
+      `SELECT COUNT(*) FROM products WHERE name ILIKE $1 AND ($2 = '' OR category = $2)`,
+      [`%${keyword}%`, category]
+    );
+
+    res.json({
+      data: result.rows,
+      total: Number(countResult.rows[0].count),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "服务器内部错误" });
   }
 });
 
