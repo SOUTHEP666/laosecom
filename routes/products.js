@@ -18,35 +18,34 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "products", // 存储在 Cloudinary 的文件夹
+    folder: "products",
     allowed_formats: ["jpg", "jpeg", "png", "gif"],
   },
 });
 
 const upload = multer({ storage });
 
-// 多图上传接口，字段名必须和前端保持一致：images
+// 多文件上传，字段名必须和前端一致
 router.post(
   "/upload",
   authenticate,
   authorize(["merchant"]),
-  upload.array("images", 5), // 最多上传5张图片
+  upload.array("images", 5),  // 注意这里的字段名 "images"
   (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: "No image files uploaded" });
       }
-
-      // 提取所有上传成功图片的 URL
-      const imageUrls = req.files.map(file => file.path);
-
-      res.json({ imageUrls }); // 返回图片数组给前端
+      const imageUrls = req.files.map((file) => file.path);
+      res.json({ imageUrls });  // 返回图片地址数组
     } catch (err) {
       console.error("上传图片出错:", err);
       res.status(500).json({ error: "Image upload failed" });
     }
   }
 );
+
+
 
 
 // 获取商家商品列表，支持分页、搜索、分类
