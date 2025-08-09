@@ -12,6 +12,7 @@ import orderRoutes from "./routes/orders.js";
 import notificationsRouter from "./routes/notifications.js";
 import adminRoutes from "./routes/admin.js";
 import publicProductRoutes from "./routes/publicProducts.js"; 
+import categoriesRoutes from './routes/categories.js';
 
 
 
@@ -58,12 +59,21 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/merchants", merchantRoutes);
-app.use("/api/merchant/products", productRoutes);  // 注意这个前缀
 app.use("/api/orders", orderRoutes);
 app.use("/notifications", notificationsRouter);
 app.use("/api/admin", adminRoutes);
-
 app.use("/api/products", publicProductRoutes);
+
+
+
+
+
+
+
+app.use("/api/merchant/products", productRoutes);  // 注意这个前缀
+app.use('/api/categories', categoriesRoutes);
+
+
 
 
 
