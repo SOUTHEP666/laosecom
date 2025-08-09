@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/auth.js";
 import userRoutes from './routes/users.js';
-import merchantRoutes from './routes/merchants.js';
+
 import productRoutes from './routes/products.js';  // 新增产品路由
 import orderRoutes from "./routes/orders.js";
 import notificationsRouter from './routes/notifications.js';
@@ -52,7 +52,7 @@ app.use(cookieParser());
 // 路由
 app.use("/api/auth", authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/merchants', merchantRoutes);
+
 app.use('/api/merchant/products', productRoutes);  // 注意这里路由前缀统一
 app.use("/api/orders", orderRoutes);
 app.use('/notifications', notificationsRouter);
