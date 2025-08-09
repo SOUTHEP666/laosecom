@@ -1,3 +1,4 @@
+// D:\wepapp\wepapp\laose-com\backend\routes\publicProducts.js
 import express from "express";
 import { query } from "../config/db.js";
 
@@ -23,17 +24,18 @@ router.get("/all", async (req, res) => {
 
     const whereSQL = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
 
+    // 统计总数
     const countSQL = `SELECT COUNT(*) FROM products ${whereSQL}`;
     const totalRes = await query(countSQL, values);
     const total = parseInt(totalRes.rows[0].count);
 
+    // 查询商品数据，不关联 merchants，直接从 products 表取卖家名字 seller_name
     const sql = `
-      SELECT p.id, p.name, p.description, p.price, p.stock, p.images, p.category, p.created_at,
-             m.name AS seller_name
-      FROM products p
-      JOIN merchants m ON p.merchant_id = m.id
+      SELECT id, name, description, price, stock, images, category, created_at,
+             seller_name
+      FROM products
       ${whereSQL}
-      ORDER BY p.created_at DESC
+      ORDER BY created_at DESC
       LIMIT $${idx++} OFFSET $${idx++}
     `;
     values.push(limit, offset);
@@ -45,7 +47,7 @@ router.get("/all", async (req, res) => {
       images: p.images ? JSON.parse(p.images) : [],
     }));
 
-    // 获取分类
+    // 获取所有分类（唯一且非空）
     const categoriesRes = await query(`SELECT DISTINCT category FROM products`);
     const categories = categoriesRes.rows.map(r => r.category).filter(Boolean);
 
