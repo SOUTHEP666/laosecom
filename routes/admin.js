@@ -72,17 +72,39 @@ router.post("/users", async (req, res) => {
 });
 
 // 编辑用户
+// 更新用户接口
 router.put("/users/:id", async (req, res) => {
-  const { username, email, role } = req.body;
+  const { id } = req.params;
+  const { username, email, password, role } = req.body;
+
   try {
-    await query(
-      "UPDATE users SET username=$1, email=$2, role=$3 WHERE id=$4",
-      [username, email, role, req.params.id]
-    );
-    res.json({ message: "更新成功" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "更新失败" });
+    // 查询用户是否存在
+    const [existing] = await query("SELECT * FROM users WHERE id = ?", [id]);
+    if (!existing) {
+      return res.status(404).json({ message: "用户不存在" });
+    }
+
+    // 拼接更新字段和参数
+    let sql = "UPDATE users SET username = ?, email = ?, role = ?";
+    const params = [username, email, role];
+
+    // 如果密码不为空，则加密并更新
+    if (password && password.trim() !== "") {
+      const salt = await bcrypt.genSalt(10);
+      const hashed = await bcrypt.hash(password, salt);
+      sql += ", password = ?";
+      params.push(hashed);
+    }
+
+    sql += " WHERE id = ?";
+    params.push(id);
+
+    await query(sql, params);
+
+    res.json({ message: "用户更新成功" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "服务器错误" });
   }
 });
 
