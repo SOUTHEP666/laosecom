@@ -1,41 +1,53 @@
 import express from "express";
 import multer from "multer";
-import cloudinary from "../utils/cloudinary.js";
+import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { query } from "../config/db.js";
 
 const router = express.Router();
 
+// Cloudinary 配置（确保环境变量已配置）
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// 设置 multer-storage-cloudinary 存储
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "products",
+    folder: "products", // 存储在 Cloudinary 的文件夹
     allowed_formats: ["jpg", "jpeg", "png", "gif"],
   },
 });
 
 const upload = multer({ storage });
 
-// 上传图片接口（支持多张）
+// 多图上传接口，字段名必须和前端保持一致：images
 router.post(
   "/upload",
   authenticate,
   authorize(["merchant"]),
-  upload.array("images", 5),  // 改成支持多张，字段名 images，最大5张
+  upload.array("images", 5), // 最多上传5张图片
   (req, res) => {
     try {
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: "No image files uploaded" });
       }
+
+      // 提取所有上传成功图片的 URL
       const imageUrls = req.files.map(file => file.path);
-      res.json({ imageUrls });
+
+      res.json({ imageUrls }); // 返回图片数组给前端
     } catch (err) {
-      console.error(err);
+      console.error("上传图片出错:", err);
       res.status(500).json({ error: "Image upload failed" });
     }
   }
 );
+
 
 // 获取商家商品列表，支持分页、搜索、分类
 router.get("/", authenticate, authorize(["merchant"]), async (req, res) => {
