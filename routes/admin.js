@@ -11,12 +11,14 @@ router.get("/users", async (req, res) => {
   let baseQuery = "SELECT id, username, email, role FROM users WHERE 1=1";
   let countQuery = "SELECT COUNT(*) FROM users WHERE 1=1";
   let params = [];
+  let countParams = [];
   let paramIndex = 1;
 
   if (keyword) {
     baseQuery += ` AND (username ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
     countQuery += ` AND (username ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
     params.push(`%${keyword}%`);
+    countParams.push(`%${keyword}%`);
     paramIndex++;
   }
 
@@ -24,6 +26,7 @@ router.get("/users", async (req, res) => {
     baseQuery += ` AND role = $${paramIndex}`;
     countQuery += ` AND role = $${paramIndex}`;
     params.push(role);
+    countParams.push(role);
     paramIndex++;
   }
 
@@ -32,10 +35,17 @@ router.get("/users", async (req, res) => {
 
   try {
     const data = await query(baseQuery, params);
-    const totalResult = await query(countQuery, params.slice(0, paramIndex - 2));
+    const totalResult = await query(countQuery, countParams);
+
+    const total = parseInt(totalResult.rows[0].count, 10);
+    const totalPages = Math.ceil(total / limit);
+
     res.json({
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPages,
       data: data.rows,
-      total: parseInt(totalResult.rows[0].count, 10),
     });
   } catch (err) {
     console.error(err);
@@ -56,6 +66,7 @@ router.post("/users", async (req, res) => {
     );
     res.json({ message: "新增成功" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "新增失败" });
   }
 });
@@ -69,7 +80,8 @@ router.put("/users/:id", async (req, res) => {
       [username, email, role, req.params.id]
     );
     res.json({ message: "更新成功" });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "更新失败" });
   }
 });
@@ -79,7 +91,8 @@ router.delete("/users/:id", async (req, res) => {
   try {
     await query("DELETE FROM users WHERE id=$1", [req.params.id]);
     res.json({ message: "删除成功" });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "删除失败" });
   }
 });
