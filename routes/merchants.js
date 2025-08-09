@@ -21,7 +21,7 @@ router.post('/apply', authenticate, authorize(['merchant']), async (req, res) =>
     );
     res.status(201).json({ merchant: result.rows[0] });
   } catch (err) {
-    console.error(err);
+    console.error('商家申请失败:', err);
     res.status(500).json({ error: '申请失败' });
   }
 });
@@ -35,7 +35,7 @@ router.get('/me', authenticate, authorize(['merchant']), async (req, res) => {
     }
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error('获取商家信息失败:', err);
     res.status(500).json({ error: '获取商家信息失败' });
   }
 });
@@ -53,7 +53,7 @@ router.get('/pending', authenticate, authorize(['admin', 'superadmin']), async (
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error('获取待审核商家失败:', err);
     res.status(500).json({ error: '获取待审核商家失败' });
   }
 });
@@ -62,10 +62,13 @@ router.get('/pending', authenticate, authorize(['admin', 'superadmin']), async (
 router.patch('/:id/approve', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   const { id } = req.params;
   try {
-    await query('UPDATE merchants SET status = $1, updated_at = NOW() WHERE id = $2', ['approved', id]);
+    const result = await query('UPDATE merchants SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *', ['approved', id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: '商家申请不存在' });
+    }
     res.json({ message: '审核通过' });
   } catch (err) {
-    console.error(err);
+    console.error('审核通过失败:', err);
     res.status(500).json({ error: '审核失败' });
   }
 });
@@ -74,10 +77,13 @@ router.patch('/:id/approve', authenticate, authorize(['admin', 'superadmin']), a
 router.patch('/:id/reject', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   const { id } = req.params;
   try {
-    await query('UPDATE merchants SET status = $1, updated_at = NOW() WHERE id = $2', ['rejected', id]);
+    const result = await query('UPDATE merchants SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *', ['rejected', id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: '商家申请不存在' });
+    }
     res.json({ message: '审核拒绝' });
   } catch (err) {
-    console.error(err);
+    console.error('审核拒绝失败:', err);
     res.status(500).json({ error: '审核失败' });
   }
 });
