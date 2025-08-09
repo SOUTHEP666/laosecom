@@ -11,6 +11,11 @@ import productRoutes from "./routes/products.js";
 import orderRoutes from "./routes/orders.js";
 import notificationsRouter from "./routes/notifications.js";
 import adminRoutes from "./routes/admin.js";
+import publicProductRoutes from "./routes/publicProducts.js"; 
+
+
+
+
 
 dotenv.config();
 
@@ -57,6 +62,10 @@ app.use("/api/merchant/products", productRoutes);  // 注意这个前缀
 app.use("/api/orders", orderRoutes);
 app.use("/notifications", notificationsRouter);
 app.use("/api/admin", adminRoutes);
+
+app.use("/api/products", publicProductRoutes);
+
+
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
