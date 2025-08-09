@@ -1,9 +1,8 @@
-// middleware/auth.js
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'yoursecretkey';
 
-// 验证token是否有效，附加用户信息到 req.user
+// 验证token是否有效，附加用户信息到 req.user 和 req.userId
 export const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ message: 'No token provided' });
@@ -14,6 +13,7 @@ export const authenticate = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    req.userId = decoded.id; // 新增这行，给 userId 赋值
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Invalid token' });
