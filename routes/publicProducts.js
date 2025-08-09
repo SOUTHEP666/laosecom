@@ -3,7 +3,6 @@ import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// 获取所有商品（买家可访问）
 router.get("/all", async (req, res) => {
   const { page = 1, limit = 12, keyword = "", category = "" } = req.query;
   const offset = (page - 1) * limit;
@@ -37,18 +36,18 @@ router.get("/all", async (req, res) => {
       ORDER BY p.created_at DESC
       LIMIT $${idx++} OFFSET $${idx++}
     `;
-
     values.push(limit, offset);
 
     const result = await query(sql, values);
 
-    const products = result.rows.map((p) => ({
+    const products = result.rows.map(p => ({
       ...p,
       images: p.images ? JSON.parse(p.images) : [],
     }));
 
+    // 获取分类
     const categoriesRes = await query(`SELECT DISTINCT category FROM products`);
-    const categories = categoriesRes.rows.map((r) => r.category).filter(Boolean);
+    const categories = categoriesRes.rows.map(r => r.category).filter(Boolean);
 
     res.json({ total, data: products, categories });
   } catch (err) {
