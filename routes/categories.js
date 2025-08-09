@@ -33,8 +33,7 @@ router.get('/', async (req, res) => {
 });
 
 // 新增分类
-router.post('/', async (req, res) => {
-  console.log('收到新增分类请求，body:', req.body);
+router.post('/', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   const { category_name, parent_id = null, description = '', image_url = '' } = req.body;
   try {
     const result = await query(
@@ -47,7 +46,6 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: '新增分类失败' });
   }
 });
-
 
 // 编辑分类
 router.put('/:id', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
