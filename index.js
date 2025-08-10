@@ -16,6 +16,8 @@ import categoriesRoutes from './routes/categories.js';
 import productImagesRoutes from './routes/productImages.js';
 import productAttributesRoutes from './routes/productAttributes.js';
 import productVariantsRoutes from './routes/productVariants.js';
+import productReviewsRoutes from './routes/productReviews.js';
+
 
 
 
@@ -80,6 +82,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/product-images', productImagesRoutes);
 app.use('/api/product-attributes', productAttributesRoutes);
 app.use('/api/product-variants', productVariantsRoutes);
+app.use('/api/product-reviews', productReviewsRoutes);
 
 
 
