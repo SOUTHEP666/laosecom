@@ -40,29 +40,39 @@ router.get('/:productId', async (req, res) => {
   }
 });
 
-// 上传商品图片
-router.post('/:productId', authenticate, authorize(['merchant']), upload.any(), async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const { alt_text = '', is_primary = false, sort_order = 0 } = req.body;
+// 上传多张商品图片
+router.post(
+  '/:productId',
+  authenticate,
+  authorize(['merchant']),
+  upload.array('images', 10), // 前端 form-data 里的字段名必须是 images
+  async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { alt_text = '', is_primary = false, sort_order = 0 } = req.body;
 
-    if (!req.file) {
-      return res.status(400).json({ error: '未上传文件' });
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: '未上传文件' });
+      }
+
+      const insertedImages = [];
+
+      for (const file of req.files) {
+        const imageUrl = `/uploads/product_images/${file.filename}`;
+        const result = await query(
+          'INSERT INTO product_images (product_id, image_url, alt_text, is_primary, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+          [productId, imageUrl, alt_text, is_primary, sort_order]
+        );
+        insertedImages.push(result.rows[0]);
+      }
+
+      res.status(201).json(insertedImages);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: '上传商品图片失败' });
     }
-
-    const imageUrl = `/uploads/product_images/${req.file.filename}`;
-
-    const result = await query(
-      'INSERT INTO product_images (product_id, image_url, alt_text, is_primary, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [productId, imageUrl, alt_text, is_primary, sort_order]
-    );
-
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: '上传商品图片失败' });
   }
-});
+);
 
 // 删除图片
 router.delete('/:imageId', authenticate, authorize(['merchant']), async (req, res) => {
