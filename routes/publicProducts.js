@@ -7,17 +7,16 @@ const router = express.Router();
 router.get("/all", async (req, res) => {
   console.log("请求参数:", req.query);
   try {
-    const { page = 1, limit = 12, keyword = "", category = "" } = req.query;
+    const { page = 1, limit = 12, keyword = "" } = req.query;
     const offset = (page - 1) * limit;
 
     const sql = `
       SELECT
         p.product_id,
-        p.name AS product_name,
+        p.product_name,
         p.price,
-        p.stock,
-        p.category,
-        p.images,
+        p.stock_quantity,
+        p.product_description,
         m.id AS merchant_id,
         m.store_name,
         m.description AS merchant_description,
@@ -28,19 +27,18 @@ router.get("/all", async (req, res) => {
       FROM products p
       LEFT JOIN merchants m ON p.merchant_id = m.id
       LEFT JOIN users u ON m.user_id = u.id
-      WHERE p.name ILIKE $1
-        AND ($2 = '' OR p.category = $2)
-      ORDER BY p.created_at DESC
-      LIMIT $3 OFFSET $4
+      WHERE p.product_name ILIKE $1
+      ORDER BY p.date_created DESC
+      LIMIT $2 OFFSET $3
     `;
 
-    const values = [`%${keyword}%`, category, limit, offset];
+    const values = [`%${keyword}%`, limit, offset];
 
     const result = await query(sql, values);
 
     const countResult = await query(
-      `SELECT COUNT(*) FROM products WHERE name ILIKE $1 AND ($2 = '' OR category = $2)`,
-      [`%${keyword}%`, category]
+      `SELECT COUNT(*) FROM products WHERE product_name ILIKE $1`,
+      [`%${keyword}%`]
     );
 
     res.json({
@@ -61,12 +59,10 @@ router.get("/detail/:id", async (req, res) => {
     const sql = `
       SELECT
         p.product_id,
-        p.name AS product_name,
-        p.description,
+        p.product_name,
+        p.product_description,
         p.price,
-        p.stock,
-        p.category,
-        p.images,
+        p.stock_quantity,
         m.id AS merchant_id,
         m.store_name,
         m.description AS merchant_description,
