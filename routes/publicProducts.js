@@ -5,6 +5,7 @@ const router = express.Router();
 
 // 产品列表接口（你已有）
 router.get("/all", async (req, res) => {
+    console.log("请求参数:", req.query);
   try {
     const { page = 1, limit = 12, keyword = "", category = "" } = req.query;
     const offset = (page - 1) * limit;
