@@ -3,26 +3,23 @@ import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// 获取公开商品列表（分页 + 关键字搜索 + 分类筛选）
 router.get("/", async (req, res) => {
   try {
     let { page = 1, limit = 12, keyword = "", category = "" } = req.query;
 
     const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.min(Math.max(1, Number(limit) || 12), 100); // 最大100条
+    const limitNum = Math.min(Math.max(1, Number(limit) || 12), 100); 
     const offset = (pageNum - 1) * limitNum;
 
     const values = [];
     let whereClauses = [];
     let idx = 1;
 
-    // 关键词模糊搜索
     if (keyword) {
       whereClauses.push(`p.product_name ILIKE $${idx++}`);
       values.push(`%${keyword}%`);
     }
 
-    // 分类筛选 - 这里用分类名称过滤，也可以用分类id，依据你需求调整
     if (category) {
       whereClauses.push(`EXISTS (
         SELECT 1 FROM product_category pc
@@ -34,7 +31,6 @@ router.get("/", async (req, res) => {
 
     const whereSQL = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
 
-    // 查询商品列表
     const sql = `
       SELECT
         p.product_id,
@@ -62,12 +58,11 @@ router.get("/", async (req, res) => {
 
     const result = await query(sql, values);
 
-    // 统计总数
     const countSql = `
       SELECT COUNT(*) FROM products p
       ${whereSQL}
     `;
-    const countResult = await query(countSql, values.slice(0, values.length - 2)); // 统计不需要limit offset
+    const countResult = await query(countSql, values.slice(0, values.length - 2));
 
     res.json({
       page: pageNum,
@@ -81,7 +76,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 获取公开商品详情
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;

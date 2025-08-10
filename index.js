@@ -1,13 +1,14 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import bodyParser from "body-parser";
+// bodyParser 已内置于 express，以下可删
+// import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import merchantRoutes from "./routes/merchants.js";
-import productRoutes from "./routes/merchantProducts.js";
+import merchantproductRoutes from "./routes/merchantProducts.js";
 import orderRoutes from "./routes/orders.js";
 import notificationsRouter from "./routes/notifications.js";
 import adminRoutes from "./routes/admin.js";
@@ -17,13 +18,6 @@ import productImagesRoutes from './routes/productImages.js';
 import productAttributesRoutes from './routes/productAttributes.js';
 import productVariantsRoutes from './routes/productVariants.js';
 import productReviewsRoutes from './routes/productReviews.js';
-
-
-
-
-
-
-
 
 dotenv.config();
 
@@ -59,7 +53,7 @@ app.use(cors({
 app.options("*", cors());
 
 app.use(express.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // 路由挂载
@@ -70,23 +64,12 @@ app.use("/api/orders", orderRoutes);
 app.use("/notifications", notificationsRouter);
 app.use("/api/admin", adminRoutes);
 app.use("/api/products", publicProductRoutes);
-
-
-
-
-
-
-
-app.use("/api/merchant/products", productRoutes);  // 注意这个前缀
+app.use("/api/merchant/products", merchantproductRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/product-images', productImagesRoutes);
 app.use('/api/product-attributes', productAttributesRoutes);
 app.use('/api/product-variants', productVariantsRoutes);
 app.use('/api/product-reviews', productReviewsRoutes);
-
-
-
-
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
