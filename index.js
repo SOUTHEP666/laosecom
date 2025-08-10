@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import merchantRoutes from "./routes/merchants.js";
-import productRoutes from "./routes/products.js";
+import productRoutes from "./routes/merchantProducts.js";
 import orderRoutes from "./routes/orders.js";
 import notificationsRouter from "./routes/notifications.js";
 import adminRoutes from "./routes/admin.js";

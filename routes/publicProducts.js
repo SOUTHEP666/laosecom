@@ -3,13 +3,13 @@ import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// 产品列表接口
-router.get("/all", async (req, res) => {
-  console.log("请求参数:", req.query);
+// 获取公开商品列表（支持分页、关键字搜索）
+router.get("/", async (req, res) => {
   try {
-    const { page = 1, limit = 12, keyword = "" } = req.query;
-    const pageNum = Number(page);
-    const limitNum = Number(limit);
+    let { page = 1, limit = 12, keyword = "" } = req.query;
+
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.min(Math.max(1, Number(limit) || 12), 100); // 最大100条
     const offset = (pageNum - 1) * limitNum;
 
     const sql = `
@@ -44,17 +44,19 @@ router.get("/all", async (req, res) => {
     );
 
     res.json({
-      data: result.rows,
+      page: pageNum,
+      limit: limitNum,
       total: Number(countResult.rows[0].count),
+      data: result.rows,
     });
   } catch (error) {
-    console.error(error);
+    console.error("获取商品列表失败:", error);
     res.status(500).json({ message: "服务器内部错误" });
   }
 });
 
-// 产品详情接口
-router.get("/detail/:id", async (req, res) => {
+// 获取公开商品详情
+router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -87,7 +89,7 @@ router.get("/detail/:id", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
+    console.error("获取商品详情失败:", error);
     res.status(500).json({ message: "服务器内部错误" });
   }
 });

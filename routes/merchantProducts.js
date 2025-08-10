@@ -17,7 +17,10 @@ router.get("/", authenticate, authorize(["merchant"]), async (req, res) => {
       is_new,
     } = req.query;
 
-    const offset = (page - 1) * limit;
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.max(1, Number(limit) || 10);
+    const offset = (pageNum - 1) * limitNum;
+
     let whereClauses = [];
     let values = [];
     let idx = 1;
@@ -50,7 +53,7 @@ router.get("/", authenticate, authorize(["merchant"]), async (req, res) => {
     const total = parseInt(totalRes.rows[0].count);
 
     // 查询数据
-    values.push(limit);
+    values.push(limitNum);
     values.push(offset);
     const sql = `
       SELECT * FROM products
@@ -61,6 +64,8 @@ router.get("/", authenticate, authorize(["merchant"]), async (req, res) => {
     const result = await query(sql, values);
 
     res.json({
+      page: pageNum,
+      limit: limitNum,
       total,
       data: result.rows,
     });
@@ -89,6 +94,11 @@ router.get("/:id", authenticate, authorize(["merchant"]), async (req, res) => {
 router.post("/", authenticate, authorize(["merchant"]), async (req, res) => {
   try {
     console.log('新增商品请求体:', req.body);
+    const merchant_id = req.user.merchant_id; // 从认证信息里获取商户ID
+    if (!merchant_id) {
+      return res.status(400).json({ error: "商户ID缺失" });
+    }
+
     const {
       product_name,
       product_description,
@@ -111,9 +121,9 @@ router.post("/", authenticate, authorize(["merchant"]), async (req, res) => {
     const result = await query(
       `INSERT INTO products
         (product_name, product_description, short_description, sku, barcode, price, sale_price, cost_price,
-         weight, dimensions, stock_quantity, min_stock_threshold, is_active, is_featured, is_bestseller, is_new, date_created, date_modified)
+         weight, dimensions, stock_quantity, min_stock_threshold, is_active, is_featured, is_bestseller, is_new, merchant_id, date_created, date_modified)
        VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW(),NOW())
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),NOW())
        RETURNING *`,
       [
         product_name,
@@ -132,6 +142,7 @@ router.post("/", authenticate, authorize(["merchant"]), async (req, res) => {
         is_featured,
         is_bestseller,
         is_new,
+        merchant_id,
       ]
     );
 
@@ -141,6 +152,7 @@ router.post("/", authenticate, authorize(["merchant"]), async (req, res) => {
     res.status(500).json({ error: "新增商品失败" });
   }
 });
+
 
 // 修改商品
 router.put("/:id", authenticate, authorize(["merchant"]), async (req, res) => {
@@ -217,6 +229,93 @@ router.delete("/:id", authenticate, authorize(["merchant"]), async (req, res) =>
   } catch (error) {
     console.error("删除商品失败:", error);
     res.status(500).json({ error: "删除商品失败" });
+  }
+});
+
+// 商品搜索接口（公开，无鉴权限制）
+router.get("/search", async (req, res) => {
+  try {
+    const {
+      keyword = "",
+      category_id,
+      attributes = "", // 格式: attrId:valueId,attrId:valueId
+      min_price,
+      max_price,
+      is_active,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.max(1, Number(limit) || 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    const values = [];
+    let idx = 1;
+    let whereClauses = [];
+
+    if (keyword) {
+      whereClauses.push(`(product_name ILIKE $${idx} OR product_description ILIKE $${idx})`);
+      values.push(`%${keyword}%`);
+      idx++;
+    }
+
+    if (category_id) {
+      whereClauses.push(`EXISTS (
+        SELECT 1 FROM product_category pc WHERE pc.product_id = p.product_id AND pc.category_id = $${idx}
+      )`);
+      values.push(category_id);
+      idx++;
+    }
+
+    if (attributes) {
+      // attributes 示例: "1:3,2:5"
+      const attrPairs = attributes.split(",");
+      attrPairs.forEach(pair => {
+        const [attrId, valId] = pair.split(":");
+        whereClauses.push(`EXISTS (
+          SELECT 1 FROM product_attribute_mapping pam 
+          WHERE pam.product_id = p.product_id 
+            AND pam.attribute_id = $${idx++} 
+            AND pam.value_id = $${idx++}
+        )`);
+        values.push(parseInt(attrId));
+        values.push(parseInt(valId));
+      });
+    }
+
+    if (min_price) {
+      whereClauses.push(`price >= $${idx++}`);
+      values.push(min_price);
+    }
+    if (max_price) {
+      whereClauses.push(`price <= $${idx++}`);
+      values.push(max_price);
+    }
+    if (is_active !== undefined) {
+      whereClauses.push(`is_active = $${idx++}`);
+      values.push(is_active === "true");
+    }
+
+    const whereSQL = whereClauses.length ? "WHERE " + whereClauses.join(" AND ") : "";
+
+    const totalRes = await query(`SELECT COUNT(*) FROM products p ${whereSQL}`, values);
+    const total = parseInt(totalRes.rows[0].count);
+
+    const dataRes = await query(
+      `SELECT * FROM products p ${whereSQL} ORDER BY date_created DESC LIMIT $${idx++} OFFSET $${idx++}`,
+      [...values, limitNum, offset]
+    );
+
+    res.json({
+      page: pageNum,
+      limit: limitNum,
+      total,
+      data: dataRes.rows,
+    });
+  } catch (err) {
+    console.error("搜索失败:", err);
+    res.status(500).json({ error: "搜索失败" });
   }
 });
 
