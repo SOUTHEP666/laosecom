@@ -3,15 +3,38 @@ import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// 获取公开商品列表（支持分页、关键字搜索）
+// 获取公开商品列表（分页 + 关键字搜索 + 分类筛选）
 router.get("/", async (req, res) => {
   try {
-    let { page = 1, limit = 12, keyword = "" } = req.query;
+    let { page = 1, limit = 12, keyword = "", category = "" } = req.query;
 
     const pageNum = Math.max(1, Number(page) || 1);
     const limitNum = Math.min(Math.max(1, Number(limit) || 12), 100); // 最大100条
     const offset = (pageNum - 1) * limitNum;
 
+    const values = [];
+    let whereClauses = [];
+    let idx = 1;
+
+    // 关键词模糊搜索
+    if (keyword) {
+      whereClauses.push(`p.product_name ILIKE $${idx++}`);
+      values.push(`%${keyword}%`);
+    }
+
+    // 分类筛选 - 这里用分类名称过滤，也可以用分类id，依据你需求调整
+    if (category) {
+      whereClauses.push(`EXISTS (
+        SELECT 1 FROM product_category pc
+        JOIN categories c ON pc.category_id = c.category_id
+        WHERE pc.product_id = p.product_id AND c.category_name = $${idx++}
+      )`);
+      values.push(category);
+    }
+
+    const whereSQL = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : "";
+
+    // 查询商品列表
     const sql = `
       SELECT
         p.product_id,
@@ -29,19 +52,22 @@ router.get("/", async (req, res) => {
       FROM products p
       LEFT JOIN merchants m ON p.merchant_id = m.id
       LEFT JOIN users u ON m.user_id = u.id
-      WHERE p.product_name ILIKE $1
+      ${whereSQL}
       ORDER BY p.date_created DESC
-      LIMIT $2 OFFSET $3
+      LIMIT $${idx++} OFFSET $${idx++}
     `;
 
-    const values = [`%${keyword}%`, limitNum, offset];
+    values.push(limitNum);
+    values.push(offset);
 
     const result = await query(sql, values);
 
-    const countResult = await query(
-      `SELECT COUNT(*) FROM products WHERE product_name ILIKE $1`,
-      [`%${keyword}%`]
-    );
+    // 统计总数
+    const countSql = `
+      SELECT COUNT(*) FROM products p
+      ${whereSQL}
+    `;
+    const countResult = await query(countSql, values.slice(0, values.length - 2)); // 统计不需要limit offset
 
     res.json({
       page: pageNum,
