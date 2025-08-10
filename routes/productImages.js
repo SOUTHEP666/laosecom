@@ -41,7 +41,7 @@ router.get('/:productId', async (req, res) => {
 });
 
 // 上传商品图片
-router.post('/:productId', authenticate, authorize(['merchant']), upload.single('image'), async (req, res) => {
+router.post('/:productId', authenticate, authorize(['merchant']), upload.any(), async (req, res) => {
   try {
     const { productId } = req.params;
     const { alt_text = '', is_primary = false, sort_order = 0 } = req.body;
