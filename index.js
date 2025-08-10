@@ -14,6 +14,7 @@ import adminRoutes from "./routes/admin.js";
 import publicProductRoutes from "./routes/publicProducts.js"; 
 import categoriesRoutes from './routes/categories.js';
 import productImagesRoutes from './routes/productImages.js';
+import productAttributesRoutes from './routes/productAttributes.js';
 
 
 
@@ -75,6 +76,7 @@ app.use("/api/products", publicProductRoutes);
 app.use("/api/merchant/products", productRoutes);  // 注意这个前缀
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/product-images', productImagesRoutes);
+app.use('/api/product-attributes', productAttributesRoutes);
 
 
 
