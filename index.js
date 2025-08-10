@@ -13,6 +13,8 @@ import notificationsRouter from "./routes/notifications.js";
 import adminRoutes from "./routes/admin.js";
 import publicProductRoutes from "./routes/publicProducts.js"; 
 import categoriesRoutes from './routes/categories.js';
+import productImagesRoutes from './routes/productImages.js';
+
 
 
 
@@ -72,6 +74,7 @@ app.use("/api/products", publicProductRoutes);
 
 app.use("/api/merchant/products", productRoutes);  // 注意这个前缀
 app.use('/api/categories', categoriesRoutes);
+app.use('/api/product-images', productImagesRoutes);
 
 
 
