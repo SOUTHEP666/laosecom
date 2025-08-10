@@ -8,7 +8,9 @@ router.get("/all", async (req, res) => {
   console.log("请求参数:", req.query);
   try {
     const { page = 1, limit = 12, keyword = "" } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const offset = (pageNum - 1) * limitNum;
 
     const sql = `
       SELECT
@@ -32,7 +34,7 @@ router.get("/all", async (req, res) => {
       LIMIT $2 OFFSET $3
     `;
 
-    const values = [`%${keyword}%`, limit, offset];
+    const values = [`%${keyword}%`, limitNum, offset];
 
     const result = await query(sql, values);
 
