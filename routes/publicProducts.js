@@ -3,16 +3,16 @@ import { query } from "../config/db.js";
 
 const router = express.Router();
 
-// 产品列表接口（你已有）
+// 产品列表接口
 router.get("/all", async (req, res) => {
-    console.log("请求参数:", req.query);
+  console.log("请求参数:", req.query);
   try {
     const { page = 1, limit = 12, keyword = "", category = "" } = req.query;
     const offset = (page - 1) * limit;
 
     const sql = `
       SELECT
-        p.id AS product_id,
+        p.product_id,
         p.name AS product_name,
         p.price,
         p.stock,
@@ -53,14 +53,14 @@ router.get("/all", async (req, res) => {
   }
 });
 
-// 新增：产品详情接口
+// 产品详情接口
 router.get("/detail/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
     const sql = `
       SELECT
-        p.id AS product_id,
+        p.product_id,
         p.name AS product_name,
         p.description,
         p.price,
@@ -77,7 +77,7 @@ router.get("/detail/:id", async (req, res) => {
       FROM products p
       LEFT JOIN merchants m ON p.merchant_id = m.id
       LEFT JOIN users u ON m.user_id = u.id
-      WHERE p.id = $1
+      WHERE p.product_id = $1
     `;
 
     const values = [id];
@@ -94,7 +94,4 @@ router.get("/detail/:id", async (req, res) => {
   }
 });
 
-
 export default router;
-
-
