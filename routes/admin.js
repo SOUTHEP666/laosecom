@@ -200,4 +200,23 @@ router.patch('/users/:id/status', async (req, res) => {
   }
 });
 
+
+// 批量删除用户
+router.post('/users/batch-delete', async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ message: '无效的用户ID列表' });
+  }
+  try {
+    const placeholders = ids.map(() => '?').join(',');
+    await query(`DELETE FROM users WHERE id IN (${placeholders})`, ids);
+    res.json({ message: '批量删除成功' });
+  } catch (error) {
+    console.error('批量删除失败', error);
+    res.status(500).json({ message: '批量删除失败' });
+  }
+});
+
+
+
 export default router;
