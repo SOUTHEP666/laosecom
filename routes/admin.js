@@ -1,43 +1,48 @@
-import express from "express";
-import { query } from "../config/db.js";
+// routes/admin.js
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import { query } from '../config/db.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// 获取用户列表（带分页、搜索、筛选）
-router.get("/users", async (req, res) => {
-  const { page = 1, limit = 5, keyword = "", role = "" } = req.query;
+// 只允许 superadmin 访问
+router.use(authenticate, authorize(['superadmin']));
+
+// 获取用户列表（分页+搜索+按角色筛选）
+router.get('/users', async (req, res) => {
+  const { page = 1, limit = 10, keyword = '', role = '' } = req.query;
   const offset = (page - 1) * limit;
 
-  let baseQuery = "SELECT id, username, email, role FROM users WHERE 1=1";
-  let countQuery = "SELECT COUNT(*) FROM users WHERE 1=1";
-  let params = [];
-  let countParams = [];
-  let paramIndex = 1;
+  let baseQuery = `SELECT id, username, name, email, role, is_active, created_at FROM users WHERE 1=1`;
+  let countQuery = `SELECT COUNT(*) FROM users WHERE 1=1`;
+  const params = [];
+  const countParams = [];
+  let idx = 1;
 
   if (keyword) {
-    baseQuery += ` AND (username ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
-    countQuery += ` AND (username ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
+    baseQuery += ` AND (username ILIKE $${idx} OR email ILIKE $${idx})`;
+    countQuery += ` AND (username ILIKE $${idx} OR email ILIKE $${idx})`;
     params.push(`%${keyword}%`);
     countParams.push(`%${keyword}%`);
-    paramIndex++;
+    idx++;
   }
 
   if (role) {
-    baseQuery += ` AND role = $${paramIndex}`;
-    countQuery += ` AND role = $${paramIndex}`;
+    baseQuery += ` AND role = $${idx}`;
+    countQuery += ` AND role = $${idx}`;
     params.push(role);
     countParams.push(role);
-    paramIndex++;
+    idx++;
   }
 
-  baseQuery += ` ORDER BY id DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+  baseQuery += ` ORDER BY id DESC LIMIT $${idx} OFFSET $${idx + 1}`;
   params.push(limit, offset);
 
   try {
-    const data = await query(baseQuery, params);
-    const totalResult = await query(countQuery, countParams);
-
-    const total = parseInt(totalResult.rows[0].count, 10);
+    const dataResult = await query(baseQuery, params);
+    const countResult = await query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0].count, 10);
     const totalPages = Math.ceil(total / limit);
 
     res.json({
@@ -45,77 +50,125 @@ router.get("/users", async (req, res) => {
       limit: Number(limit),
       total,
       totalPages,
-      data: data.rows,
+      data: dataResult.rows,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "获取用户失败" });
+    res.status(500).json({ message: '获取用户失败' });
   }
 });
 
 // 新增用户
-router.post("/users", async (req, res) => {
-  const { username, email, password, role } = req.body;
+router.post('/users', async (req, res) => {
+  const { username, name, email, password, role, is_active = true } = req.body;
   if (!username || !email || !password || !role) {
-    return res.status(400).json({ message: "参数不完整" });
+    return res.status(400).json({ message: '参数不完整' });
   }
   try {
-    await query(
-      "INSERT INTO users (username, email, password, role) VALUES ($1, $2, crypt($3, gen_salt('bf')), $4)",
-      [username, email, password, role]
-    );
-    res.json({ message: "新增成功" });
+    // 检查邮箱和用户名是否存在
+    const emailExist = await query('SELECT id FROM users WHERE email = $1', [email]);
+    if (emailExist.rows.length > 0) {
+      return res.status(400).json({ message: '邮箱已被注册' });
+    }
+    const usernameExist = await query('SELECT id FROM users WHERE username = $1', [username]);
+    if (usernameExist.rows.length > 0) {
+      return res.status(400).json({ message: '用户名已存在' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const insertSql = `
+      INSERT INTO users (username, name, email, password, role, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, username, name, email, role, is_active, created_at
+    `;
+    const result = await query(insertSql, [username, name || username, email, hashedPassword, role, is_active]);
+    res.status(201).json({ user: result.rows[0], message: '新增成功' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "新增失败" });
+    res.status(500).json({ message: '新增失败' });
   }
 });
 
 // 编辑用户
-// 更新用户接口
-router.put("/users/:id", async (req, res) => {
+router.put('/users/:id', async (req, res) => {
   const { id } = req.params;
-  const { username, email, password, role } = req.body;
+  const { username, name, email, password, role, is_active } = req.body;
 
   try {
     // 查询用户是否存在
-    const [existing] = await query("SELECT * FROM users WHERE id = ?", [id]);
-    if (!existing) {
-      return res.status(404).json({ message: "用户不存在" });
+    const existing = await query('SELECT * FROM users WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ message: '用户不存在' });
     }
 
-    // 拼接更新字段和参数
-    let sql = "UPDATE users SET username = ?, email = ?, role = ?";
-    const params = [username, email, role];
-
-    // 如果密码不为空，则加密并更新
-    if (password && password.trim() !== "") {
-      const salt = await bcrypt.genSalt(10);
-      const hashed = await bcrypt.hash(password, salt);
-      sql += ", password = ?";
-      params.push(hashed);
+    // 检查用户名或邮箱是否被别的用户占用
+    const userCheck = await query(
+      'SELECT id FROM users WHERE (username = $1 OR email = $2) AND id <> $3',
+      [username, email, id]
+    );
+    if (userCheck.rows.length > 0) {
+      return res.status(400).json({ message: '用户名或邮箱已被占用' });
     }
 
-    sql += " WHERE id = ?";
-    params.push(id);
+    const params = [username, name || username, email, role, is_active, id];
+    let sql = `
+      UPDATE users
+      SET username = $1, name = $2, email = $3, role = $4, is_active = $5
+    `;
+
+    if (password && password.trim() !== '') {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      sql += `, password = $6 WHERE id = $7`;
+      params.splice(5, 0, hashedPassword);
+    } else {
+      sql += ` WHERE id = $6`;
+    }
 
     await query(sql, params);
 
-    res.json({ message: "用户更新成功" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "服务器错误" });
+    res.json({ message: '用户更新成功' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: '用户更新失败' });
   }
 });
 
 // 删除用户
-router.delete("/users/:id", async (req, res) => {
+router.delete('/users/:id', async (req, res) => {
+  const { id } = req.params;
+
   try {
-    await query("DELETE FROM users WHERE id=$1", [req.params.id]);
-    res.json({ message: "删除成功" });
+    if (req.userId === parseInt(id, 10)) {
+      return res.status(400).json({ message: '不能删除自己' });
+    }
+
+    await query('DELETE FROM users WHERE id = $1', [id]);
+    res.json({ message: '删除成功' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "删除失败" });
+    res.status(500).json({ message: '删除失败' });
+  }
+});
+
+// 启用/禁用用户
+router.patch('/users/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { is_active } = req.body;
+
+  if (typeof is_active !== 'boolean') {
+    return res.status(400).json({ message: '参数错误，is_active 必须是布尔值' });
+  }
+
+  try {
+    if (req.userId === parseInt(id, 10)) {
+      return res.status(400).json({ message: '不能修改自己的启用状态' });
+    }
+
+    await query('UPDATE users SET is_active = $1 WHERE id = $2', [is_active, id]);
+    res.json({ message: is_active ? '用户已启用' : '用户已禁用' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: '状态更新失败' });
   }
 });
 
