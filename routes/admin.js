@@ -9,7 +9,11 @@ const router = express.Router();
 // 只允许 superadmin 访问
 router.use(authenticate, authorize(['superadmin']));
 
-// 获取用户列表（分页+搜索+按角色筛选）
+/**
+ * 获取用户列表（支持分页、关键词搜索和角色筛选）
+ * 请求参数：page, limit, keyword, role
+ * 返回：分页用户列表和总数
+ */
 router.get('/users', async (req, res) => {
   const { page = 1, limit = 10, keyword = '', role = '' } = req.query;
   const offset = (page - 1) * limit;
@@ -53,19 +57,22 @@ router.get('/users', async (req, res) => {
       data: dataResult.rows,
     });
   } catch (err) {
-    console.error(err);
+    console.error('获取用户列表失败:', err);
     res.status(500).json({ message: '获取用户失败' });
   }
 });
 
-// 新增用户
+/**
+ * 新增用户
+ * 请求体：username, name, email, password, role, is_active
+ */
 router.post('/users', async (req, res) => {
   const { username, name, email, password, role, is_active = true } = req.body;
   if (!username || !email || !password || !role) {
     return res.status(400).json({ message: '参数不完整' });
   }
   try {
-    // 检查邮箱和用户名是否存在
+    // 检查邮箱和用户名是否已存在
     const emailExist = await query('SELECT id FROM users WHERE email = $1', [email]);
     if (emailExist.rows.length > 0) {
       return res.status(400).json({ message: '邮箱已被注册' });
@@ -84,12 +91,16 @@ router.post('/users', async (req, res) => {
     const result = await query(insertSql, [username, name || username, email, hashedPassword, role, is_active]);
     res.status(201).json({ user: result.rows[0], message: '新增成功' });
   } catch (err) {
-    console.error(err);
+    console.error('新增用户失败:', err);
     res.status(500).json({ message: '新增失败' });
   }
 });
 
-// 编辑用户
+/**
+ * 编辑用户
+ * 请求参数：id（路由参数）
+ * 请求体：username, name, email, password, role, is_active
+ */
 router.put('/users/:id', async (req, res) => {
   const { id } = req.params;
   const { username, name, email, password, role, is_active } = req.body;
@@ -110,6 +121,7 @@ router.put('/users/:id', async (req, res) => {
       return res.status(400).json({ message: '用户名或邮箱已被占用' });
     }
 
+    // 拼接更新SQL及参数
     const params = [username, name || username, email, role, is_active, id];
     let sql = `
       UPDATE users
@@ -119,7 +131,7 @@ router.put('/users/:id', async (req, res) => {
     if (password && password.trim() !== '') {
       const hashedPassword = await bcrypt.hash(password, 10);
       sql += `, password = $6 WHERE id = $7`;
-      params.splice(5, 0, hashedPassword);
+      params.splice(5, 0, hashedPassword); // 在第6个参数插入 hashedPassword
     } else {
       sql += ` WHERE id = $6`;
     }
@@ -128,12 +140,15 @@ router.put('/users/:id', async (req, res) => {
 
     res.json({ message: '用户更新成功' });
   } catch (err) {
-    console.error(err);
+    console.error('编辑用户失败:', err);
     res.status(500).json({ message: '用户更新失败' });
   }
 });
 
-// 删除用户
+/**
+ * 删除用户
+ * 请求参数：id（路由参数）
+ */
 router.delete('/users/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -142,15 +157,24 @@ router.delete('/users/:id', async (req, res) => {
       return res.status(400).json({ message: '不能删除自己' });
     }
 
-    await query('DELETE FROM users WHERE id = $1', [id]);
+    const result = await query('DELETE FROM users WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: '用户不存在或已被删除' });
+    }
+
     res.json({ message: '删除成功' });
   } catch (err) {
-    console.error(err);
+    console.error('删除用户失败:', err);
     res.status(500).json({ message: '删除失败' });
   }
 });
 
-// 启用/禁用用户
+/**
+ * 启用/禁用用户
+ * 请求参数：id（路由参数）
+ * 请求体：is_active (boolean)
+ */
 router.patch('/users/:id/status', async (req, res) => {
   const { id } = req.params;
   const { is_active } = req.body;
@@ -167,7 +191,7 @@ router.patch('/users/:id/status', async (req, res) => {
     await query('UPDATE users SET is_active = $1 WHERE id = $2', [is_active, id]);
     res.json({ message: is_active ? '用户已启用' : '用户已禁用' });
   } catch (err) {
-    console.error(err);
+    console.error('启用/禁用用户失败:', err);
     res.status(500).json({ message: '状态更新失败' });
   }
 });
