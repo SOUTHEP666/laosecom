@@ -8,7 +8,7 @@ router.get("/", async (req, res) => {
     let { page = 1, limit = 12, keyword = "", category = "" } = req.query;
 
     const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.min(Math.max(1, Number(limit) || 12), 100); 
+    const limitNum = Math.min(Math.max(1, Number(limit) || 12), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const values = [];
