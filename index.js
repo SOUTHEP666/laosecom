@@ -1,8 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-// bodyParser 已内置于 express，以下可删
-// import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 
 import authRoutes from "./routes/auth.js";
@@ -12,7 +10,7 @@ import merchantproductRoutes from "./routes/merchantProducts.js";
 import orderRoutes from "./routes/orders.js";
 import notificationsRouter from "./routes/notifications.js";
 import adminRoutes from "./routes/admin.js";
-import publicProductRoutes from "./routes/publicProducts.js"; 
+import publicProductRoutes from "./routes/publicProducts.js";
 import categoriesRoutes from './routes/categories.js';
 import productImagesRoutes from './routes/productImages.js';
 import productAttributesRoutes from './routes/productAttributes.js';
@@ -32,13 +30,16 @@ const allowedOrigins = [
   "https://laosecom.onrender.com",
 ];
 
+// 打印请求日志
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
+// CORS 配置，支持预检请求
 app.use(cors({
   origin: function (origin, callback) {
+    // 允许无来源（比如 curl 或本地 Postman）
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -50,8 +51,10 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
+// 显式处理 OPTIONS 预检请求
 app.options("*", cors());
 
+// 解析请求体
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -71,21 +74,23 @@ app.use('/api/product-attributes', productAttributesRoutes);
 app.use('/api/product-variants', productVariantsRoutes);
 app.use('/api/product-reviews', productReviewsRoutes);
 
+// 健康检查接口
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// 404
-app.use((req, res, next) => {
+// 404处理
+app.use((req, res) => {
   res.status(404).json({ message: "接口不存在" });
 });
 
-// 错误处理中间件
+// 全局错误处理中间件
 app.use((err, req, res, next) => {
   console.error("❌ 错误信息：", err.stack);
   res.status(500).json({ message: err.message || "服务器内部错误" });
 });
 
+// 启动服务
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
