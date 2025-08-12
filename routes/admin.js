@@ -151,12 +151,15 @@ router.put('/users/:id', async (req, res) => {
  */
 router.delete('/users/:id', async (req, res) => {
   const { id } = req.params;
-
   try {
     if (req.userId === parseInt(id, 10)) {
       return res.status(400).json({ message: '不能删除自己' });
     }
 
+    // 先删除关联的商家记录
+    await query('DELETE FROM merchants WHERE user_id = $1', [id]);
+
+    // 再删除用户
     const result = await query('DELETE FROM users WHERE id = $1', [id]);
 
     if (result.rowCount === 0) {
@@ -166,9 +169,10 @@ router.delete('/users/:id', async (req, res) => {
     res.json({ message: '删除成功' });
   } catch (err) {
     console.error('删除用户失败:', err);
-    res.status(500).json({ message: '删除失败' });
+    res.status(500).json({ message: '删除失败，服务器内部错误' });
   }
 });
+
 
 /**
  * 启用/禁用用户
