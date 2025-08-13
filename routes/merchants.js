@@ -213,4 +213,41 @@ router.patch('/apply/:id/status', authenticate, authorize(['admin', 'superadmin'
   }
 });
 
+
+// 获取商家后台统计信息
+router.get('/dashboard', authenticate, authorize(['merchant']), async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // 查询订单统计
+    const orderResult = await query(
+      `SELECT 
+         COUNT(*) AS total,
+         COUNT(*) FILTER (WHERE status='pending') AS pending,
+         COUNT(*) FILTER (WHERE status='completed') AS completed
+       FROM orders
+       WHERE merchant_id=$1`,
+      [userId]
+    );
+
+    // 查询商品统计
+    const productResult = await query(
+      `SELECT COUNT(*) AS total_products
+       FROM merchant_products
+       WHERE merchant_id=$1`,
+      [userId]
+    );
+
+    res.json({
+      totalOrders: parseInt(orderResult.rows[0].total, 10),
+      pending: parseInt(orderResult.rows[0].pending, 10),
+      completed: parseInt(orderResult.rows[0].completed, 10),
+      totalProducts: parseInt(productResult.rows[0].total_products, 10),
+    });
+  } catch (err) {
+    console.error('获取商家后台统计失败:', err);
+    res.status(500).json({ error: '获取商家后台统计失败' });
+  }
+});
+
 export default router;
