@@ -153,7 +153,6 @@ router.post("/", authenticate, authorize(["merchant"]), async (req, res) => {
   }
 });
 
-
 // 修改商品
 router.put("/:id", authenticate, authorize(["merchant"]), async (req, res) => {
   try {
