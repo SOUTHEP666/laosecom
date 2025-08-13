@@ -103,14 +103,13 @@ router.get('/apply/pending', authenticate, authorize(['admin', 'superadmin']), a
 
 
 // 管理员审核商家 - 通过
-// 审核通过
 router.patch('/apply/:id/approve', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
-  const applicationId = parseInt(req.params.id, 10); // 确保是整数
+  const applicationId = parseInt(req.params.id, 10);
   try {
     const adminId = req.user.id;
     const adminLevel = req.user.role === 'superadmin' ? 'level2' : 'level1';
 
-    // 先更新申请状态
+    // 更新申请状态
     const result = await query(
       `UPDATE merchant_applications 
        SET status = 'approved', admin_level = $1, admin_id = $2, updated_at = NOW() 
@@ -125,7 +124,7 @@ router.patch('/apply/:id/approve', authenticate, authorize(['admin', 'superadmin
 
     const application = result.rows[0];
 
-    // 创建正式商家（如果还没创建）
+    // 创建正式商家记录
     const exist = await query(
       `SELECT * FROM merchants WHERE user_id = $1`,
       [application.user_id]
@@ -150,13 +149,15 @@ router.patch('/apply/:id/approve', authenticate, authorize(['admin', 'superadmin
 
 // 管理员审核商家 - 拒绝
 router.patch('/apply/:id/reject', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
-  const applicationId = req.params.id;
+  const applicationId = parseInt(req.params.id, 10);
   try {
     const adminId = req.user.id;
     const adminLevel = req.user.role === 'superadmin' ? 'level2' : 'level1';
 
     const result = await query(
-      `UPDATE merchant_applications SET status = 'rejected', admin_level = $1, admin_id = $2, updated_at = NOW() WHERE application_id = $3 RETURNING *`,
+      `UPDATE merchant_applications 
+       SET status = 'rejected', admin_level = $1, admin_id = $2, updated_at = NOW() 
+       WHERE application_id = $3 RETURNING *`,
       [adminLevel, adminId, applicationId]
     );
 
@@ -170,6 +171,7 @@ router.patch('/apply/:id/reject', authenticate, authorize(['admin', 'superadmin'
     res.status(500).json({ error: '审核失败' });
   }
 });
+
 
 
 export default router;
