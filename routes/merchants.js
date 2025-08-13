@@ -103,14 +103,19 @@ router.get('/apply/pending', authenticate, authorize(['admin', 'superadmin']), a
 
 
 // 管理员审核商家 - 通过
+// 审核通过
 router.patch('/apply/:id/approve', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
-  const applicationId = req.params.id;
+  const applicationId = parseInt(req.params.id, 10); // 确保是整数
   try {
     const adminId = req.user.id;
     const adminLevel = req.user.role === 'superadmin' ? 'level2' : 'level1';
 
+    // 先更新申请状态
     const result = await query(
-      `UPDATE merchant_applications SET status = 'approved', admin_level = $1, admin_id = $2, updated_at = NOW() WHERE application_id = $3 RETURNING *`,
+      `UPDATE merchant_applications 
+       SET status = 'approved', admin_level = $1, admin_id = $2, updated_at = NOW() 
+       WHERE application_id = $3 
+       RETURNING *`,
       [adminLevel, adminId, applicationId]
     );
 
@@ -118,12 +123,29 @@ router.patch('/apply/:id/approve', authenticate, authorize(['admin', 'superadmin
       return res.status(404).json({ message: '申请不存在' });
     }
 
-    res.json({ message: '审核通过', application: result.rows[0] });
+    const application = result.rows[0];
+
+    // 创建正式商家（如果还没创建）
+    const exist = await query(
+      `SELECT * FROM merchants WHERE user_id = $1`,
+      [application.user_id]
+    );
+
+    if (exist.rows.length === 0) {
+      await query(
+        `INSERT INTO merchants (user_id, store_name, created_at, updated_at)
+         VALUES ($1, $2, NOW(), NOW())`,
+        [application.user_id, application.store_name]
+      );
+    }
+
+    res.json({ message: '审核通过，商家已激活', application });
   } catch (err) {
     console.error('审核通过失败:', err);
     res.status(500).json({ error: '审核失败' });
   }
 });
+
 
 
 // 管理员审核商家 - 拒绝
