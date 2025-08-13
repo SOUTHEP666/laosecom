@@ -61,9 +61,23 @@ router.get('/apply/me', authenticate, authorize(['merchant']), async (req, res) 
 // -------------------- 获取审核状态 --------------------
 router.get('/status', authenticate, authorize(['merchant']), async (req, res) => {
   try {
-    const result = await query('SELECT * FROM merchants WHERE user_id=$1', [req.user.id]);
-    if (result.rows.length === 0) return res.json({ status: 'no_apply' });
-    return res.json({ status: 'approved', merchant: result.rows[0] });
+    // 先查 merchants 表
+    const merchantResult = await query('SELECT * FROM merchants WHERE user_id=$1', [req.user.id]);
+    if (merchantResult.rows.length > 0) {
+      return res.json({ status: 'approved', merchant: merchantResult.rows[0] });
+    }
+
+    // 再查最新申请记录
+    const appResult = await query(
+      'SELECT status FROM merchant_applications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1',
+      [req.user.id]
+    );
+
+    if (appResult.rows.length === 0) {
+      return res.json({ status: 'no_apply' });
+    }
+
+    return res.json({ status: appResult.rows[0].status });
   } catch (err) {
     console.error('获取审核状态失败:', err);
     res.status(500).json({ error: '获取审核状态失败' });
@@ -137,7 +151,10 @@ router.put('/apply/:id', authenticate, authorize(['admin', 'superadmin']), async
       const application = result.rows[0];
       const exist = await query('SELECT * FROM merchants WHERE user_id=$1', [application.user_id]);
       if (exist.rows.length === 0) {
-        await query('INSERT INTO merchants (user_id, store_name, created_at, updated_at) VALUES ($1,$2,NOW(),NOW())', [application.user_id, application.store_name]);
+        await query(
+          'INSERT INTO merchants (user_id, store_name, created_at, updated_at) VALUES ($1,$2,NOW(),NOW())',
+          [application.user_id, application.store_name]
+        );
       }
     }
 
@@ -182,7 +199,10 @@ router.patch('/apply/:id/status', authenticate, authorize(['admin', 'superadmin'
       const application = result.rows[0];
       const exist = await query('SELECT * FROM merchants WHERE user_id=$1', [application.user_id]);
       if (exist.rows.length === 0) {
-        await query('INSERT INTO merchants (user_id, store_name, created_at, updated_at) VALUES ($1,$2,NOW(),NOW())', [application.user_id, application.store_name]);
+        await query(
+          'INSERT INTO merchants (user_id, store_name, created_at, updated_at) VALUES ($1,$2,NOW(),NOW())',
+          [application.user_id, application.store_name]
+        );
       }
     }
 
