@@ -69,13 +69,31 @@ router.get('/status', authenticate, authorize(['merchant']), async (req, res) =>
 // 管理员获取所有待审核商家
 router.get('/apply/pending', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+
     const result = await query(
-      `SELECT ma.*, u.username, u.email FROM merchant_applications ma 
+      `SELECT ma.application_id, ma.store_name, ma.status, u.username, u.email
+       FROM merchant_applications ma
        JOIN users u ON ma.user_id = u.id
        WHERE ma.status = 'pending'
-       ORDER BY ma.created_at DESC`
+       ORDER BY ma.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
-    res.json(result.rows);
+
+    const countResult = await query(
+      `SELECT COUNT(*) FROM merchant_applications WHERE status = 'pending'`
+    );
+    const total = parseInt(countResult.rows[0].count, 10);
+
+    res.json({
+      total,
+      page,
+      limit,
+      data: result.rows,
+    });
   } catch (err) {
     console.error('获取待审核申请失败:', err);
     res.status(500).json({ error: '获取待审核申请失败' });
@@ -83,15 +101,14 @@ router.get('/apply/pending', authenticate, authorize(['admin', 'superadmin']), a
 });
 
 
+
 // 管理员审核商家 - 通过
 router.patch('/apply/:id/approve', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   const applicationId = req.params.id;
   try {
-    // 记录当前管理员ID和级别
     const adminId = req.user.id;
     const adminLevel = req.user.role === 'superadmin' ? 'level2' : 'level1';
 
-    // 更新状态
     const result = await query(
       `UPDATE merchant_applications SET status = 'approved', admin_level = $1, admin_id = $2, updated_at = NOW() WHERE application_id = $3 RETURNING *`,
       [adminLevel, adminId, applicationId]
@@ -100,8 +117,6 @@ router.patch('/apply/:id/approve', authenticate, authorize(['admin', 'superadmin
     if (result.rowCount === 0) {
       return res.status(404).json({ message: '申请不存在' });
     }
-
-    // TODO: 你可以这里同步创建正式商家记录到 merchants 表
 
     res.json({ message: '审核通过', application: result.rows[0] });
   } catch (err) {
