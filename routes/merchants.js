@@ -74,8 +74,8 @@ router.get('/status', authenticate, authorize(['merchant']), async (req, res) =>
   }
 });
 
-// -------------------- 管理员获取待审核商家 --------------------
-router.get('/apply/pending', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
+// -------------------- 管理员获取所有商家申请 --------------------
+router.get('/apply/all', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -85,21 +85,20 @@ router.get('/apply/pending', authenticate, authorize(['admin', 'superadmin']), a
       `SELECT ma.application_id, ma.store_name, ma.status, u.username, u.email
        FROM merchant_applications ma
        JOIN users u ON ma.user_id = u.id
-       WHERE ma.status = 'pending'
        ORDER BY ma.created_at DESC
        LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
 
     const countResult = await query(
-      `SELECT COUNT(*) FROM merchant_applications WHERE status = 'pending'`
+      `SELECT COUNT(*) FROM merchant_applications`
     );
     const total = parseInt(countResult.rows[0].count, 10);
 
     res.json({ total, page, limit, data: result.rows });
   } catch (err) {
-    console.error('获取待审核申请失败:', err);
-    res.status(500).json({ error: '获取待审核申请失败' });
+    console.error('获取商家申请列表失败:', err);
+    res.status(500).json({ error: '获取商家申请列表失败' });
   }
 });
 
