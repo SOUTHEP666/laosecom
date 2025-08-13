@@ -1,4 +1,3 @@
-// routes/merchants.js
 import express from 'express';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { query } from '../config/db.js';
@@ -37,6 +36,20 @@ router.get('/me', authenticate, authorize(['merchant']), async (req, res) => {
   } catch (err) {
     console.error('获取商家信息失败:', err);
     res.status(500).json({ error: '获取商家信息失败' });
+  }
+});
+
+// 获取当前商家审核状态接口
+router.get('/status', authenticate, authorize(['merchant']), async (req, res) => {
+  try {
+    const result = await query('SELECT status FROM merchants WHERE user_id = $1', [req.user.id]);
+    if (result.rows.length === 0) {
+      return res.json({ status: 'no_apply' }); // 未申请
+    }
+    return res.json({ status: result.rows[0].status }); // pending/approved/rejected
+  } catch (err) {
+    console.error('获取审核状态失败:', err);
+    res.status(500).json({ error: '获取审核状态失败' });
   }
 });
 
