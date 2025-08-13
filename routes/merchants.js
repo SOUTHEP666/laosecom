@@ -5,24 +5,46 @@ import { query } from '../config/db.js';
 
 const router = express.Router();
 
+/**
+ * 统一判断：用户是否是“已审核通过”的商家
+ * 仅当 merchants 表存在该 user_id 且 status='approved' 才放行
+ */
+const mustApprovedMerchant = async (req, res, next) => {
+  try {
+    const r = await query('SELECT status FROM merchants WHERE user_id=$1', [req.user.id]);
+    if (r.rows.length === 0) {
+      return res.status(403).json({ message: '您还未成为商家，请先申请' });
+    }
+    if (r.rows[0].status !== 'approved') {
+      return res.status(403).json({ message: '您的商家申请尚未通过审核' });
+    }
+    next();
+  } catch (e) {
+    console.error('校验商家审核状态失败:', e);
+    res.status(500).json({ message: '服务器错误' });
+  }
+};
+
 // -------------------- 创建商家申请 --------------------
 router.post('/apply', authenticate, authorize(['merchant']), async (req, res) => {
   const { store_name, contact_name, phone, email, address, business_license, notes } = req.body;
   try {
+    // 已有 pending 申请
     const existingPending = await query(
-      'SELECT * FROM merchant_applications WHERE user_id=$1 AND status=$2',
+      'SELECT 1 FROM merchant_applications WHERE user_id=$1 AND status=$2',
       [req.user.id, 'pending']
     );
     if (existingPending.rows.length > 0) {
       return res.status(400).json({ message: '已有未处理的申请' });
     }
 
+    // 已是正式商家
     const existingMerchant = await query(
-      'SELECT * FROM merchants WHERE user_id=$1',
-      [req.user.id]
+      'SELECT 1 FROM merchants WHERE user_id=$1 AND status=$2',
+      [req.user.id, 'approved']
     );
     if (existingMerchant.rows.length > 0) {
-      return res.status(400).json({ message: '您已成为正式商家，无法再次申请' });
+      return res.status(400).json({ message: '您已是正式商家，无法再次申请' });
     }
 
     const result = await query(
@@ -40,8 +62,7 @@ router.post('/apply', authenticate, authorize(['merchant']), async (req, res) =>
   }
 });
 
-
-// -------------------- 获取自己最新申请状态 --------------------
+// -------------------- 获取自己最新申请记录（可选） --------------------
 router.get('/apply/me', authenticate, authorize(['merchant']), async (req, res) => {
   try {
     const result = await query(
@@ -56,24 +77,31 @@ router.get('/apply/me', authenticate, authorize(['merchant']), async (req, res) 
   }
 });
 
-// -------------------- 获取审核状态 --------------------
+// -------------------- 获取审核状态（前端路由守卫依赖此接口） --------------------
 router.get('/status', authenticate, authorize(['merchant']), async (req, res) => {
   try {
+    // 1) 先看是否是“已通过”的正式商家
     const merchantResult = await query('SELECT * FROM merchants WHERE user_id=$1', [req.user.id]);
     if (merchantResult.rows.length > 0) {
-      return res.json({ status: 'approved', merchant: merchantResult.rows[0] });
+      const status = merchantResult.rows[0].status || 'approved';
+      if (status === 'approved') {
+        return res.json({ status: 'approved', merchant: merchantResult.rows[0] });
+      }
+      // merchants 有记录但不是 approved（很少见），按照记录返回
+      return res.json({ status });
     }
 
+    // 2) 看最新申请记录
     const appResult = await query(
       'SELECT status FROM merchant_applications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1',
       [req.user.id]
     );
-
     if (appResult.rows.length === 0) {
       return res.json({ status: 'no_apply' });
     }
 
-    // 如果申请记录是 approved，但对应 merchants 表没有数据，说明商家被删除
+    // 如果申请是 approved 但 merchants 没有记录（可能被管理员删除了正式商家）
+    // 则视为未申请，避免前端误判为已通过
     if (appResult.rows[0].status === 'approved') {
       return res.json({ status: 'no_apply' });
     }
@@ -85,8 +113,7 @@ router.get('/status', authenticate, authorize(['merchant']), async (req, res) =>
   }
 });
 
-
-// -------------------- 获取所有申请（分页/搜索/状态筛选） --------------------
+// -------------------- 后台管理：申请列表（分页/搜索/状态筛选） --------------------
 router.get('/apply/all', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -135,7 +162,7 @@ router.get('/apply/all', authenticate, authorize(['admin', 'superadmin']), async
   }
 });
 
-// -------------------- 更新申请（编辑） --------------------
+// -------------------- 管理员编辑申请 --------------------
 router.put('/apply/:id', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { store_name, contact_name, phone, email, address, business_license, notes, status } = req.body;
@@ -148,14 +175,20 @@ router.put('/apply/:id', authenticate, authorize(['admin', 'superadmin']), async
     );
     if (result.rowCount === 0) return res.status(404).json({ message: '申请不存在' });
 
-    // 如果状态为approved且商家不存在，则创建正式商家
+    // 如果改成 approved，确保 merchants 表有正式商家记录
     if (status === 'approved') {
       const application = result.rows[0];
-      const exist = await query('SELECT * FROM merchants WHERE user_id=$1', [application.user_id]);
+      const exist = await query('SELECT 1 FROM merchants WHERE user_id=$1', [application.user_id]);
       if (exist.rows.length === 0) {
         await query(
-          'INSERT INTO merchants (user_id, store_name, created_at, updated_at) VALUES ($1,$2,NOW(),NOW())',
+          `INSERT INTO merchants (user_id, store_name, status, created_at, updated_at)
+           VALUES ($1,$2,'approved',NOW(),NOW())`,
           [application.user_id, application.store_name]
+        );
+      } else {
+        await query(
+          `UPDATE merchants SET status='approved', store_name=$1, updated_at=NOW() WHERE user_id=$2`,
+          [application.store_name, application.user_id]
         );
       }
     }
@@ -167,7 +200,7 @@ router.put('/apply/:id', authenticate, authorize(['admin', 'superadmin']), async
   }
 });
 
-// -------------------- 删除申请 --------------------
+// -------------------- 管理员删除申请 --------------------
 router.delete('/apply/:id', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   try {
@@ -180,7 +213,7 @@ router.delete('/apply/:id', authenticate, authorize(['admin', 'superadmin']), as
   }
 });
 
-// -------------------- 修改申请状态 --------------------
+// -------------------- 管理员修改申请状态（通过/拒绝） --------------------
 router.patch('/apply/:id/status', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { status } = req.body;
@@ -196,14 +229,19 @@ router.patch('/apply/:id/status', authenticate, authorize(['admin', 'superadmin'
 
     if (result.rowCount === 0) return res.status(404).json({ message: '申请不存在' });
 
-    // 状态为approved，自动创建正式商家
     if (status === 'approved') {
       const application = result.rows[0];
-      const exist = await query('SELECT * FROM merchants WHERE user_id=$1', [application.user_id]);
+      const exist = await query('SELECT 1 FROM merchants WHERE user_id=$1', [application.user_id]);
       if (exist.rows.length === 0) {
         await query(
-          'INSERT INTO merchants (user_id, store_name, created_at, updated_at) VALUES ($1,$2,NOW(),NOW())',
+          `INSERT INTO merchants (user_id, store_name, status, created_at, updated_at)
+           VALUES ($1,$2,'approved',NOW(),NOW())`,
           [application.user_id, application.store_name]
+        );
+      } else {
+        await query(
+          `UPDATE merchants SET status='approved', store_name=$1, updated_at=NOW() WHERE user_id=$2`,
+          [application.store_name, application.user_id]
         );
       }
     }
@@ -215,37 +253,43 @@ router.patch('/apply/:id/status', authenticate, authorize(['admin', 'superadmin'
   }
 });
 
-
-// 获取商家后台统计信息
-router.get('/dashboard', authenticate, authorize(['merchant']), async (req, res) => {
+// -------------------- 商家后台统计（用 products 表；orders 以 merchant_user_id 统计） --------------------
+router.get('/dashboard', authenticate, authorize(['merchant']), mustApprovedMerchant, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 查询订单统计
-    const orderResult = await query(
-      `SELECT 
-         COUNT(*) AS total,
-         COUNT(*) FILTER (WHERE status='pending') AS pending,
-         COUNT(*) FILTER (WHERE status='completed') AS completed
-       FROM orders
-       WHERE user_id=$1`, // 注意：这里字段名需和 orders 表里商家 ID 字段一致
-      [userId]
-    );
+    // 商品统计（你的表名是 products）
+    let totalProducts = 0;
+    try {
+      const productResult = await query(
+        `SELECT COUNT(*) AS total_products FROM products WHERE user_id=$1`,
+        [userId]
+      );
+      totalProducts = parseInt(productResult.rows[0].total_products || '0', 10);
+    } catch (e) {
+      console.error('统计商品失败（products 表）:', e);
+    }
 
-    // 查询商品统计
-    const productResult = await query(
-      `SELECT COUNT(*) AS total_products
-       FROM merchant_products
-       WHERE user_id=$1`, // 注意：字段名需和 merchant_products 表里商家 ID 字段一致
-      [userId]
-    );
+    // 订单统计（假定 orders 表里以 merchant_user_id 关联到商家用户）
+    let totalOrders = 0, pending = 0, completed = 0;
+    try {
+      const orderResult = await query(
+        `SELECT 
+           COUNT(*) AS total,
+           COUNT(*) FILTER (WHERE status='pending') AS pending,
+           COUNT(*) FILTER (WHERE status='completed') AS completed
+         FROM orders
+         WHERE merchant_user_id=$1`,
+        [userId]
+      );
+      totalOrders = parseInt(orderResult.rows[0].total || '0', 10);
+      pending = parseInt(orderResult.rows[0].pending || '0', 10);
+      completed = parseInt(orderResult.rows[0].completed || '0', 10);
+    } catch (e) {
+      console.error('统计订单失败（orders 表）:', e);
+    }
 
-    res.json({
-      totalOrders: parseInt(orderResult.rows[0].total, 10),
-      pending: parseInt(orderResult.rows[0].pending, 10),
-      completed: parseInt(orderResult.rows[0].completed, 10),
-      totalProducts: parseInt(productResult.rows[0].total_products, 10),
-    });
+    res.json({ totalOrders, pending, completed, totalProducts });
   } catch (err) {
     console.error('获取商家后台统计失败:', err);
     res.status(500).json({ error: '获取商家后台统计失败' });
