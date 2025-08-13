@@ -73,12 +73,18 @@ router.get('/status', authenticate, authorize(['merchant']), async (req, res) =>
       return res.json({ status: 'no_apply' });
     }
 
+    // 如果申请记录是 approved，但对应 merchants 表没有数据，说明商家被删除
+    if (appResult.rows[0].status === 'approved') {
+      return res.json({ status: 'no_apply' });
+    }
+
     return res.json({ status: appResult.rows[0].status });
   } catch (err) {
     console.error('获取审核状态失败:', err);
     res.status(500).json({ error: '获取审核状态失败' });
   }
 });
+
 
 // -------------------- 获取所有申请（分页/搜索/状态筛选） --------------------
 router.get('/apply/all', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
