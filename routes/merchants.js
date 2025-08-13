@@ -62,7 +62,7 @@ router.post('/apply', authenticate, authorize(['merchant']), async (req, res) =>
   }
 });
 
-// -------------------- 获取自己最新申请记录（可选） --------------------
+// -------------------- 获取自己最新申请记录 --------------------
 router.get('/apply/me', authenticate, authorize(['merchant']), async (req, res) => {
   try {
     const result = await query(
@@ -80,18 +80,17 @@ router.get('/apply/me', authenticate, authorize(['merchant']), async (req, res) 
 // -------------------- 获取审核状态（前端路由守卫依赖此接口） --------------------
 router.get('/status', authenticate, authorize(['merchant']), async (req, res) => {
   try {
-    // 1) 先看是否是“已通过”的正式商家
+    // 1) 查询 merchants 表，看是否正式商家
     const merchantResult = await query('SELECT * FROM merchants WHERE user_id=$1', [req.user.id]);
     if (merchantResult.rows.length > 0) {
       const status = merchantResult.rows[0].status || 'approved';
       if (status === 'approved') {
         return res.json({ status: 'approved', merchant: merchantResult.rows[0] });
       }
-      // merchants 有记录但不是 approved（很少见），按照记录返回
       return res.json({ status });
     }
 
-    // 2) 看最新申请记录
+    // 2) 查询最新申请记录
     const appResult = await query(
       'SELECT status FROM merchant_applications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1',
       [req.user.id]
@@ -100,8 +99,7 @@ router.get('/status', authenticate, authorize(['merchant']), async (req, res) =>
       return res.json({ status: 'no_apply' });
     }
 
-    // 如果申请是 approved 但 merchants 没有记录（可能被管理员删除了正式商家）
-    // 则视为未申请，避免前端误判为已通过
+    // 如果申请状态是 approved，但 merchants 没有正式记录，则视为未申请
     if (appResult.rows[0].status === 'approved') {
       return res.json({ status: 'no_apply' });
     }
@@ -113,7 +111,7 @@ router.get('/status', authenticate, authorize(['merchant']), async (req, res) =>
   }
 });
 
-// -------------------- 后台管理：申请列表（分页/搜索/状态筛选） --------------------
+// -------------------- 管理员获取申请列表（分页/搜索/状态筛选） --------------------
 router.get('/apply/all', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -213,7 +211,7 @@ router.delete('/apply/:id', authenticate, authorize(['admin', 'superadmin']), as
   }
 });
 
-// -------------------- 管理员修改申请状态（通过/拒绝） --------------------
+// -------------------- 管理员修改申请状态 --------------------
 router.patch('/apply/:id/status', authenticate, authorize(['admin', 'superadmin']), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { status } = req.body;
@@ -253,24 +251,21 @@ router.patch('/apply/:id/status', authenticate, authorize(['admin', 'superadmin'
   }
 });
 
-// -------------------- 商家后台统计（用 products 表；orders 以 merchant_user_id 统计） --------------------
+// -------------------- 商家后台统计 --------------------
 router.get('/dashboard', authenticate, authorize(['merchant']), mustApprovedMerchant, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 商品统计（你的表名是 products）
+    // 商品统计
     let totalProducts = 0;
     try {
-      const productResult = await query(
-        `SELECT COUNT(*) AS total_products FROM products WHERE user_id=$1`,
-        [userId]
-      );
+      const productResult = await query(`SELECT COUNT(*) AS total_products FROM products WHERE user_id=$1`, [userId]);
       totalProducts = parseInt(productResult.rows[0].total_products || '0', 10);
     } catch (e) {
       console.error('统计商品失败（products 表）:', e);
     }
 
-    // 订单统计（假定 orders 表里以 merchant_user_id 关联到商家用户）
+    // 订单统计
     let totalOrders = 0, pending = 0, completed = 0;
     try {
       const orderResult = await query(
