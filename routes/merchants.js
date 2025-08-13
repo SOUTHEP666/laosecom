@@ -9,7 +9,6 @@ const router = express.Router();
 router.post('/apply', authenticate, authorize(['merchant']), async (req, res) => {
   const { store_name, contact_name, phone, email, address, business_license, notes } = req.body;
   try {
-    // 检查是否已有未处理申请（pending）
     const existingPending = await query(
       'SELECT * FROM merchant_applications WHERE user_id=$1 AND status=$2',
       [req.user.id, 'pending']
@@ -18,7 +17,6 @@ router.post('/apply', authenticate, authorize(['merchant']), async (req, res) =>
       return res.status(400).json({ message: '已有未处理的申请' });
     }
 
-    // 检查正式商家是否存在
     const existingMerchant = await query(
       'SELECT * FROM merchants WHERE user_id=$1',
       [req.user.id]
@@ -27,7 +25,6 @@ router.post('/apply', authenticate, authorize(['merchant']), async (req, res) =>
       return res.status(400).json({ message: '您已成为正式商家，无法再次申请' });
     }
 
-    // 插入新申请
     const result = await query(
       `INSERT INTO merchant_applications
       (user_id, store_name, contact_name, phone, email, address, business_license, notes, status, admin_level, admin_id, created_at, updated_at)
@@ -42,6 +39,7 @@ router.post('/apply', authenticate, authorize(['merchant']), async (req, res) =>
     res.status(500).json({ error: '申请失败' });
   }
 });
+
 
 // -------------------- 获取自己最新申请状态 --------------------
 router.get('/apply/me', authenticate, authorize(['merchant']), async (req, res) => {
@@ -61,13 +59,11 @@ router.get('/apply/me', authenticate, authorize(['merchant']), async (req, res) 
 // -------------------- 获取审核状态 --------------------
 router.get('/status', authenticate, authorize(['merchant']), async (req, res) => {
   try {
-    // 先查 merchants 表
     const merchantResult = await query('SELECT * FROM merchants WHERE user_id=$1', [req.user.id]);
     if (merchantResult.rows.length > 0) {
       return res.json({ status: 'approved', merchant: merchantResult.rows[0] });
     }
 
-    // 再查最新申请记录
     const appResult = await query(
       'SELECT status FROM merchant_applications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1',
       [req.user.id]
@@ -226,7 +222,7 @@ router.get('/dashboard', authenticate, authorize(['merchant']), async (req, res)
          COUNT(*) FILTER (WHERE status='pending') AS pending,
          COUNT(*) FILTER (WHERE status='completed') AS completed
        FROM orders
-       WHERE merchant_id=$1`,
+       WHERE user_id=$1`, // 注意：这里字段名需和 orders 表里商家 ID 字段一致
       [userId]
     );
 
@@ -234,7 +230,7 @@ router.get('/dashboard', authenticate, authorize(['merchant']), async (req, res)
     const productResult = await query(
       `SELECT COUNT(*) AS total_products
        FROM merchant_products
-       WHERE merchant_id=$1`,
+       WHERE user_id=$1`, // 注意：字段名需和 merchant_products 表里商家 ID 字段一致
       [userId]
     );
 
